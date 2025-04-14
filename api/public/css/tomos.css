@@ -1,0 +1,92 @@
+    <style>
+        .container {
+            margin-top: 20px;
+        }
+        .card-filtros {
+            margin-bottom: 20px;
+        }
+        .form-check {
+            margin-bottom: 10px;
+        }
+        /* Tarjeta del tomo individual: ancho 240px, formato "libro" */
+        .card-tomo {
+            width: 240px;
+            margin: 15px auto;
+            border-radius: 10px;
+            overflow: visible;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card-tomo img {
+            width: 100%;
+            height: auto;
+            object-fit: cover;
+        }
+        /* Footer de cada tarjeta de tomo: botones en columna con separación */
+        .card-tomo .card-footer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            background-color: #fff;
+            border-top: 1px solid #e9ecef;
+            padding: 10px;
+            overflow: visible;
+        }
+        .card-tomo .card-footer .btn {
+            padding: 5px 8px;
+        }
+        /* Filtros: radio buttons y select dinámico */
+        .filtros-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+        .filter-select {
+            display: none;
+            max-width: 250px;
+        }
+        #searchBar {
+            margin-bottom: 15px;
+            display: block;
+        }
+        .separator {
+            border-top: 1px solid #ccc;
+            margin: 15px 0;
+        }
+        /* Paginación personalizada */
+        .pagination-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .btn-crear-tomo {
+            width: auto;
+            padding: 8px 20px;
+            font-size: 16px;
+            text-align: center;
+            border-radius: 5px;
+        }
+        .btn-crear-tomo:hover {
+            background-color: #0056b3;
+        }
+        /* Tarjeta del tomo individual: max ancho 240px para mantener el formato "libro" */
+        .card-tomo {
+            max-width: 240px;
+            width: 100%;
+            margin: 15px auto;
+            border-radius: 10px;
+            overflow: visible;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        @media (max-width: 1024px) {
+            .card-tomo {
+                max-width: 200px;
+                margin: 15px auto;
+            }
+        }
+
+
+    </style>
