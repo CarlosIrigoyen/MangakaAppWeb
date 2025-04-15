@@ -1,5 +1,5 @@
-  <!-- Contenedor con el Card de Bootstrap -->
-  <div class="container">
+<!-- Contenedor con el Card de Bootstrap -->
+<div class="container">
     <!-- Card con la tabla de editoriales -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -8,15 +8,15 @@
                 Crear Editorial
             </button>
         </div>
-        <div class="card-body">
-            <!-- Tabla con ID para aplicar DataTables -->
-            <table id="Contenido" class="table table-bordered table-hover dataTable dtr-inline">
+        <div class="card-body table-responsive">
+            <!-- Tabla con id "editorialesTable" para aplicar DataTables -->
+            <table id="editorialesTable" class="table table-bordered table-hover dataTable dtr-inline" style="width: 100%">
                 <thead>
                     <tr>
                         <th>#</th>
                         <th>Nombre</th>
                         <th>País</th>
-                        <th style="width: 80px;">Acciones</th> <!-- Ajusta el tamaño de la columna de acciones -->
+                        <th style="width: 80px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -26,15 +26,15 @@
                             <td>{{ $editorial->nombre }}</td>
                             <td>{{ $editorial->pais }}</td>
                             <td class="text-center">
-                                <!-- Icono para editar editorial -->
+                                <!-- Botón para editar editorial -->
                                 <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalEditar" onclick="editarEditorial({{ $editorial->id }})">
-                                    <i class="fas fa-pen"></i> <!-- Icono de pluma -->
+                                    <i class="fas fa-pen"></i>
                                 </button>
-                                <!-- Espacio entre los iconos -->
+                                <!-- Espacio entre iconos -->
                                 <span class="mx-2"></span>
-                                <!-- Icono para eliminar editorial -->
+                                <!-- Botón para eliminar editorial -->
                                 <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalEliminar" onclick="configurarEliminar({{ $editorial->id }})">
-                                    <i class="fas fa-trash-alt"></i> <!-- Icono de tacho -->
+                                    <i class="fas fa-trash-alt"></i>
                                 </button>
                             </td>
                         </tr>
