@@ -1,4 +1,4 @@
-    <style>
+
         .container {
             margin-top: 20px;
         }
@@ -87,6 +87,8 @@
                 margin: 15px auto;
             }
         }
+        .card-tomo .card-footer .btn {
+            width: 200px;
+            margin: 0 auto; /* Para centrar el botón dentro del contenedor */
+        }
 
-
-    </style>

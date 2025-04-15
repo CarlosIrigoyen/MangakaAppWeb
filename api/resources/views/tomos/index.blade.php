@@ -42,15 +42,15 @@
                                     <div class="card-footer">
                                         <!-- Botón para abrir el modal de información -->
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#modalInfo-{{ $tomo->id }}">
-                                            <i class="fas fa-info-circle"></i>
+                                            <i class="fas fa-info-circle">Información</i>
                                         </button>
                                         <!-- Botón para abrir el modal de edición -->
                                         <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalEdit-{{ $tomo->id }}">
-                                            <i class="fas fa-edit"></i>
+                                            <i class="fas fa-edit">Editar</i>
                                         </button>
                                         <!-- Botón para abrir el modal de eliminación -->
                                         <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete-{{ $tomo->id }}">
-                                            <i class="fas fa-trash"></i>
+                                            <i class="fas fa-trash">Eliminar</i>
                                         </button>
                                     </div>
                                 </div>
