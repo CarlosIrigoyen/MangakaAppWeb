@@ -8,7 +8,7 @@
     @php( $dashboard_url = $dashboard_url ? url($dashboard_url) : '' )
 @endif
 
-<a href="{{ $dashboard_url }}"
+<div
     @if($layoutHelper->isLayoutTopnavEnabled())
         class="navbar-brand {{ config('adminlte.classes_brand') }}"
     @else
@@ -20,9 +20,9 @@
          alt="{{ config('adminlte.logo_img_alt', 'AdminLTE') }}"
          class="{{ config('adminlte.logo_img_class', 'brand-image img-circle elevation-3') }}"
          style="opacity:.8">
-        
+
     {{-- Brand text --}}
     <span class="brand-text font-weight-light {{ config('adminlte.classes_brand_text') }}">
         {!! config('adminlte.logo', '<b>Admin</b>LTE') !!}
     </span>
-</a>
+</div>
