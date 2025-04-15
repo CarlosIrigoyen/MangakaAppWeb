@@ -63,7 +63,10 @@
                                         {{ $genero->nombre }}@if(!$loop->last), @endif
                                     @endforeach
                                 </td>
-                                <td>{{ $manga->en_publicacion ? 'Sí' : 'No' }}</td>
+                                <td class="text-center">
+                                    <!-- Muestra un checkbox deshabilitado; marcado si en_publicacion es "si" -->
+                                    <input type="checkbox" disabled {{ $manga->en_publicacion === 'si' ? 'checked' : '' }}>
+                                </td>
                                 <td class="text-center">
                                     <div class="acciones-container">
                                         <!-- Botón para editar manga -->
@@ -115,22 +118,27 @@
         });
 
         function editarManga(manga) {
-            // Rellenar el formulario de edición con los datos del manga
+            console.log('Datos del manga:', manga);
+
+            // Actualiza los valores de los campos del modal
             $('#manga_id').val(manga.id);
             $('#titulo_editar').val(manga.titulo);
             $('#autor_editar').val(manga.autor.id);
             $('#dibujante_editar').val(manga.dibujante.id);
 
-            // Limpiar previamente las casillas de géneros y marcarlas según el manga
+            // Reinicia el estado de los checkboxes de géneros y marca los que correspondan
             $('.genero-checkbox').prop('checked', false);
-            manga.generos.forEach(function(genero) {
-                $('#genero_editar' + genero.id).prop('checked', true);
-            });
+            if (manga.generos && manga.generos.length > 0) {
+                manga.generos.forEach(function(genero) {
+                    $('#genero_editar' + genero.id).prop('checked', true);
+                });
+            }
 
-            // Establecer el valor del checkbox de publicación
-            $('#en_publicacion_editar').prop('checked', manga.en_publicacion);
+            // Configura el checkbox "En Publicación"
+            // Se marca si el valor es "si"
+            $('#en_publicacion_editar').prop('checked', manga.en_publicacion === 'si');
 
-            // Configurar la acción del formulario para actualizar el manga
+            // Actualiza la acción del formulario para apuntar al endpoint correcto
             $('#formEditar').attr('action', '/mangas/' + manga.id);
         }
 

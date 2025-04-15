@@ -37,11 +37,11 @@
                     <p>Editoriales</p>
                 </a>
             </li>
-            {{-- Ítem Categorías --}}
+            {{-- Ítem Generos --}}
             <li class="nav-item">
-                <a href="#" class="nav-link">
+                <a href="{{route('generos.index')}}" class="nav-link">
                     <i class="nav-icon fas fa-tags"></i>
-                    <p>Categorías</p>
+                    <p>Generos</p>
                 </a>
             </li>
             {{-- Ítem Mangas --}}

@@ -22,7 +22,7 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.bootstrap5.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/responsive/3.0.3/css/responsive.bootstrap5.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    
+
     <!-- Ocultar la tabla inicialmente para evitar parpadeos -->
     <style>
         /* Se usa el id "dibujantesTable" en la tabla */
@@ -40,7 +40,7 @@
     <script src="https://cdn.datatables.net/2.1.8/js/dataTables.bootstrap5.js"></script>
     <script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.js"></script>
     <script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.js"></script>
-    
+
     <script>
         $(document).ready(function() {
             // Inicialización de DataTable para dibujantes usando el id "dibujantesTable"
@@ -67,6 +67,6 @@
             });
         });
     </script>
-    <!-- Si tienes código adicional en "dibujantes.js", puedes incluirlo aquí -->
+
     <!-- <script src="{{ asset('js/dibujantes.js') }}"></script> -->
 @stop

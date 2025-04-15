@@ -8,12 +8,15 @@ use Illuminate\Database\Eloquent\Model;
 class Manga extends Model
 {
     use HasFactory;
-    protected $table = 'mangas'; // Asegurar el nombre correcto de la tabla
-    // Definir los campos que pueden ser asignados masivamente
+
+    // Nombre de la tabla (opcional si se sigue la convención, pero se incluye por claridad)
+    protected $table = 'mangas';
+
+    // Campos asignables masivamente
     protected $fillable = ['titulo', 'autor_id', 'dibujante_id', 'en_publicacion'];
 
     /**
-     * Relación con el modelo Autor
+     * Relación con el modelo Autor.
      * Un manga pertenece a un autor.
      */
     public function autor()
@@ -22,7 +25,7 @@ class Manga extends Model
     }
 
     /**
-     * Relación con el modelo Dibujante
+     * Relación con el modelo Dibujante.
      * Un manga pertenece a un dibujante.
      */
     public function dibujante()
@@ -31,10 +34,11 @@ class Manga extends Model
     }
 
     /**
-     * Relación muchos a muchos con el modelo Genero
+     * Relación muchos a muchos con el modelo Genero.
      * Un manga puede tener muchos géneros y un género puede estar asociado a muchos mangas.
      */
-    public function generos(){
+    public function generos()
+    {
         return $this->belongsToMany(Genero::class, 'manga_genero', 'manga_id', 'genero_id');
     }
 }

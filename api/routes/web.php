@@ -12,10 +12,10 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Ruta de recursos para autores
 Route::resource('autores', AutorController::class);
 Route::resource('dibujantes', DibujanteController::class);
 Route::resource('editoriales', EditorialController::class);
+Route::resource('generos', EditorialController::class);
 Route::resource('mangas', MangaController::class)->except(['update']);
 Route::put('tomos/updateMultipleStock', [TomoController::class, 'updateMultipleStock'])->name('tomos.updateMultipleStock');
 Route::resource('tomos', TomoController::class);

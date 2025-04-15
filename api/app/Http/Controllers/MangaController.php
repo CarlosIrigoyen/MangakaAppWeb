@@ -11,42 +11,45 @@ use Illuminate\Http\Request;
 class MangaController extends Controller
 {
     public function index()
-    {
-        // Obtener todos los mangas junto con sus relaciones
-        $mangas = Manga::with(['autor', 'dibujante', 'generos'])->get();
-        // Solo se muestran autores y dibujantes activos
-        $autores = Autor::where('activo', true)->get();
-        $dibujantes = Dibujante::where('activo', true)->get();
-        $generos = Genero::all();
+{
+    // Obtener todos los mangas junto con sus relaciones
+    $mangas = Manga::with(['autor', 'dibujante', 'generos'])->get();
+    // Solo se muestran autores y dibujantes activos
+    $autores = Autor::where('activo', true)->get();
+    $dibujantes = Dibujante::where('activo', true)->get();
+    $generos = Genero::all();
 
-        return view('mangas.index', compact('mangas', 'autores', 'dibujantes', 'generos'));
-    }
+    return view('mangas.index', compact('mangas', 'autores', 'dibujantes', 'generos'));
+}
 
-    public function store(Request $request)
-    {
-        // Validar los datos del formulario
-        $request->validate([
-            'titulo'         => 'required|string|max:255',
-            'autor_id'       => 'required|exists:autores,id',
-            'dibujante_id'   => 'required|exists:dibujantes,id',
-            'generos'        => 'required|array',
-            'generos.*'      => 'exists:generos,id',
-            'en_publicacion' => 'sometimes|boolean',
-        ]);
+public function store(Request $request)
+{
+    // Validar los datos del formulario, se omite en_publicacion pues se gestionará manualmente
+    $request->validate([
+        'titulo'         => 'required|string|max:255',
+        'autor_id'       => 'required|exists:autores,id',
+        'dibujante_id'   => 'required|exists:dibujantes,id',
+        'generos'        => 'required|array',
+        'generos.*'      => 'exists:generos,id',
+    ]);
 
-        // Crear el nuevo manga, asignando true por defecto si no se envía el campo
-        $manga = Manga::create([
-            'titulo'         => $request->titulo,
-            'autor_id'       => $request->autor_id,
-            'dibujante_id'   => $request->dibujante_id,
-            'en_publicacion' => $request->has('en_publicacion') ? $request->en_publicacion : true,
-        ]);
+    // Determinar el valor de en_publicacion según si el checkbox está marcado
+    $en_publicacion = $request->has('en_publicacion') ? 'si' : 'no';
 
-        // Asociar los géneros seleccionados
-        $manga->generos()->attach($request->generos);
+    // Crear el nuevo manga
+    $manga = Manga::create([
+        'titulo'         => $request->titulo,
+        'autor_id'       => $request->autor_id,
+        'dibujante_id'   => $request->dibujante_id,
+        'en_publicacion' => $en_publicacion,
+    ]);
 
-        return redirect()->route('mangas.index')->with('success', 'Manga creado exitosamente.');
-    }
+    // Asociar los géneros seleccionados
+    $manga->generos()->attach($request->generos);
+
+    return redirect()->route('mangas.index')->with('success', 'Manga creado exitosamente.');
+}
+
 
     public function edit($id)
     {
@@ -61,31 +64,36 @@ class MangaController extends Controller
     }
 
     public function update(Request $request, $id)
-    {
-        // Validar los datos del formulario
-        $request->validate([
-            'titulo'         => 'required|string|max:255',
-            'autor_id'       => 'required|exists:autores,id',
-            'dibujante_id'   => 'required|exists:dibujantes,id',
-            'generos'        => 'required|array',
-            'generos.*'      => 'exists:generos,id',
-            'en_publicacion' => 'sometimes|boolean',
-        ]);
+{
+    // Validar los datos del formulario, nuevamente se omite en_publicacion
+    $request->validate([
+        'titulo'         => 'required|string|max:255',
+        'autor_id'       => 'required|exists:autores,id',
+        'dibujante_id'   => 'required|exists:dibujantes,id',
+        'generos'        => 'required|array',
+        'generos.*'      => 'exists:generos,id',
+    ]);
 
-        // Obtener y actualizar el manga
-        $manga = Manga::findOrFail($id);
-        $manga->update([
-            'titulo'         => $request->titulo,
-            'autor_id'       => $request->autor_id,
-            'dibujante_id'   => $request->dibujante_id,
-            'en_publicacion' => $request->has('en_publicacion'),
-        ]);
+    // Obtener el manga a actualizar
+    $manga = Manga::findOrFail($id);
 
-        // Actualizar los géneros asociados
-        $manga->generos()->sync($request->generos);
+    // Determinar el valor de en_publicacion de la misma forma
+    $en_publicacion = $request->has('en_publicacion') ? 'si' : 'no';
 
-        return redirect()->route('mangas.index')->with('success', 'Manga actualizado exitosamente.');
-    }
+    // Actualizar el manga
+    $manga->update([
+        'titulo'         => $request->titulo,
+        'autor_id'       => $request->autor_id,
+        'dibujante_id'   => $request->dibujante_id,
+        'en_publicacion' => $en_publicacion,
+    ]);
+
+    // Actualizar la relación con los géneros
+    $manga->generos()->sync($request->generos);
+
+    return redirect()->route('mangas.index')->with('success', 'Manga actualizado exitosamente.');
+}
+
 
     public function destroy($id)
     {
