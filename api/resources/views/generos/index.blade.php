@@ -43,9 +43,15 @@
             // Inicialización de DataTable para editoriales usando el id "editorialesTable"
             var table = $('#generosTable').DataTable({
                 responsive: true,
-                autoWidth: false,
-                language: {
-                    url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json'
+                autoWidth: false,"language": {
+                    "lengthMenu": "Mostrar _MENU_ registros por página",
+                    "zeroRecords": "No se encontraron resultados",
+                    "info": "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                    "infoEmpty": "Mostrando 0 a 0 de 0 registros",
+                    "infoFiltered": "(filtrado de _MAX_ registros totales)",
+                    "search": "Buscar:",
+                    emptyTable: "No se encontraron generos",
+
                 },
                 initComplete: function () {
                     // Mostrar la tabla una vez finalizada la inicialización

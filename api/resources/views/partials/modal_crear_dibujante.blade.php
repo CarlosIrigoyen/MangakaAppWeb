@@ -35,7 +35,7 @@
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                             <!-- Botón deshabilitado hasta cumplir validaciones -->
-                            <button type="submit" class="btn btn-primary" id="crearButton" disabled>Crear Dibujante</button>
+                            <button type="submit" class="btn btn-primary" id="crearButton">Crear Dibujante</button>
                         </div>
                     </form>
                 </div>

@@ -30,7 +30,7 @@
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                             <!-- Botón de edición, inicialmente deshabilitado hasta validación -->
-                            <button type="submit" class="btn btn-primary" id="editButton" disabled>Guardar Cambios</button>
+                            <button type="submit" class="btn btn-primary" id="editButton" >Guardar Cambios</button>
                         </div>
                     </form>
                 </div>

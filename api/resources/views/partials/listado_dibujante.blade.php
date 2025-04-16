@@ -1,14 +1,14 @@
-<!-- Card con la tabla de dibujantes -->
-<div class="card">
+  <!-- Card con la tabla de dibujantes -->
+  <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <!-- Botón para crear dibujante -->
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCrear">
             Crear Dibujante
         </button>
     </div>
-    <div class="card-body table-responsive">
-        <!-- Tabla con ID específico para aplicar DataTables -->
-        <table id="dibujantesTable" class="table table-bordered table-hover dataTable dtr-inline" style="width: 100%">
+    <div class="card-body">
+        <!-- Tabla con ID para aplicar DataTables -->
+        <table id="Contenido" class="table table-bordered table-hover dataTable dtr-inline">
             <thead>
                 <tr>
                     <th>#</th>
