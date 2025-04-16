@@ -20,6 +20,8 @@ class CreateTomosTable extends Migration
             $table->enum('idioma', ['Español', 'Inglés', 'Japonés']);
             $table->decimal('precio', 8, 2);
             $table->date('fecha_publicacion');
+            // Agregar la columna public_id para Cloudinary (se hace nullable en caso de que en algún momento no se requiera)
+            $table->string('public_id')->nullable();
             $table->string('portada'); // Guarda la ruta de la imagen
             $table->unsignedInteger('stock')->default(0); // Nuevo atributo stock
             $table->timestamps();
