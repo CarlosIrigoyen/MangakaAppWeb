@@ -14,12 +14,13 @@ class AutorController extends Controller
         'nombre'           => 'required|string|max:255',
         'apellido'         => 'required|string|max:255',
         'fecha_nacimiento' => 'required|date|before_or_equal:' . \Carbon\Carbon::now()->subYears(18)->toDateString(),
+        'fecha_nacimiento.before_or_equal' => 'El autor debe tener al menos 18 años.',
     ], [
         'fecha_nacimiento.before_or_equal' => 'El autor debe tener al menos 18 años.',
     ]);
 
     // Buscar si ya existe un autor con el mismo nombre, apellido y fecha de nacimiento
-    $autor = \App\Models\Autor::where('nombre', $validated['nombre'])
+    $autor = Autor::where('nombre', $validated['nombre'])
                 ->where('apellido', $validated['apellido'])
                 ->where('fecha_nacimiento', $validated['fecha_nacimiento'])
                 ->first();
@@ -30,7 +31,7 @@ class AutorController extends Controller
         $autor->save();
     } else {
         // Crear el nuevo autor, estableciendo 'activo' como true por defecto
-        \App\Models\Autor::create([
+        Autor::create([
             'nombre'           => $validated['nombre'],
             'apellido'         => $validated['apellido'],
             'fecha_nacimiento' => $validated['fecha_nacimiento'],

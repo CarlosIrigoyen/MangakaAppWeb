@@ -7,7 +7,6 @@ use App\Http\Controllers\EditorialController;
 use App\Http\Controllers\MangaController;
 use App\Http\Controllers\GeneroController;
 use App\Http\Controllers\TomoController;
-Route::get('/autores', [AutorController::class, 'index'])->name('autores.index');
 Route::get('/', function () {
     return view('welcome');
 });
@@ -21,7 +20,7 @@ Route::put('tomos/updateMultipleStock', [TomoController::class, 'updateMultipleS
 Route::resource('tomos', TomoController::class);
 // Usamos PUT para la actualización del manga
 Route::put('/mangas/{id}', [MangaController::class, 'update'])->name('mangas.update');
-Route::resource('generos', GeneroController::class);
+
 
 Route::middleware([
     'auth:sanctum',

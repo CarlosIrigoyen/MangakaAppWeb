@@ -26,33 +26,29 @@ class DibujanteController extends Controller
         $validated = $request->validate([
             'nombre'            => 'required|string|max:255|regex:/^[\p{L}\s]+$/u',
             'apellido'          => 'required|string|max:255|regex:/^[\p{L}\s]+$/u',
-            'fecha_nacimiento'  => 'required|date|before:' . Carbon::now()->subYears(18)->toDateString(),
+            'fecha_nacimiento'  => 'required|date|before:' . Carbon::now()->subYears(18)->toDateString(),],[
+            'fecha_nacimiento.before' => 'El dibujante debe tener al menos 18 años.',
         ]);
+        // Buscar si ya existe un dibujante con el mismo nombre, apellido y fecha de nacimiento
+            $dibujante = Dibujante::where('nombre', $validated['nombre'])
+                                    ->where('apellido', $validated['apellido'])
+                                    ->where('fecha_nacimiento', $validated['fecha_nacimiento'])
+                                    ->first();
 
-        // Transformación: primer letra mayúscula y el resto en minúsculas (para cada palabra)
-        $nombre   = mb_convert_case(trim($validated['nombre']), MB_CASE_TITLE, "UTF-8");
-        $apellido = mb_convert_case(trim($validated['apellido']), MB_CASE_TITLE, "UTF-8");
-
-        // Verificar si ya existe un dibujante con estos datos
-        $existing = Dibujante::where('nombre', $nombre)
-                    ->where('apellido', $apellido)
-                    ->where('fecha_nacimiento', $validated['fecha_nacimiento'])
-                    ->first();
-
-        if ($existing) {
-            // Reactivar dibujante ya existente
-            $existing->activo = true;
-            $existing->save();
-            return redirect()->route('dibujantes.index')->with('success', 'Dibujante reactivado exitosamente.');
-        }
-
-        // Crear nuevo dibujante con activo en true
-        Dibujante::create([
-            'nombre'            => $nombre,
-            'apellido'          => $apellido,
-            'fecha_nacimiento'  => $validated['fecha_nacimiento'],
-            'activo'            => true,
-        ]);
+            if ($dibujante) {
+                // Si ya existe, se actualiza el campo activo a true
+                $dibujante->activo = true;
+                $dibujante->save();
+            }
+            else {
+                // Crear el nuevo dibujante, estableciendo 'activo' como true por defecto
+                Dibujante::create([
+                    'nombre'            => $validated['nombre'],
+                    'apellido'          => $validated['apellido'],
+                    'fecha_nacimiento'  => $validated['fecha_nacimiento'],
+                    'activo'            => true,
+                ]);
+            }
 
         return redirect()->route('dibujantes.index')->with('success', 'Dibujante creado exitosamente.');
     }

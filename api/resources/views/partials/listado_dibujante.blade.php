@@ -14,6 +14,7 @@
                     <th>#</th>
                     <th>Nombre</th>
                     <th>Apellido</th>
+                    <th>Fecha de Nacimiento</th>
                     <th style="width: 80px;">Acciones</th> <!-- Ajusta el tamaño de la columna de acciones -->
                 </tr>
             </thead>
@@ -23,6 +24,7 @@
                         <td>{{ $dibujante->id }}</td>
                         <td>{{ $dibujante->nombre }}</td>
                         <td>{{ $dibujante->apellido }}</td>
+                        <td>{{ \Carbon\Carbon::parse($dibujante->fecha_nacimiento)->format('d/m/Y') }}</td>
                         <td class="text-center">
                             <!-- Icono para editar dibujante -->
                             <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalEditar" onclick="editarDibujante({{ $dibujante->id }})">
