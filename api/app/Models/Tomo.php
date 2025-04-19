@@ -18,7 +18,8 @@ class Tomo extends Model
         'precio',
         'fecha_publicacion',
         'portada',
-        'stock'
+        'stock',
+        'public_id',
     ];
 
     // Si prefieres que Laravel maneje las marcas de tiempo, puedes quitar esta línea

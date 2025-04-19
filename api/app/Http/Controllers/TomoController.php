@@ -8,6 +8,10 @@ use App\Models\Editorial;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
+use Cloudinary\Api\Upload\UploadApi;
+
+
 
 class TomoController extends Controller
 {
@@ -91,7 +95,7 @@ class TomoController extends Controller
                             ->first();
             if ($lastTomo) {
                 $nextTomos[$manga->id] = [
-                    'numero' => $lastTomo->numero_tomo + 1,
+                    'numero_tomo' => $lastTomo->numero_tomo + 1,
                     'fecha'  => \Carbon\Carbon::parse($lastTomo->fecha_publicacion)
                                       ->addMonth()
                                       ->format('Y-m-d')
@@ -111,92 +115,82 @@ class TomoController extends Controller
         return view('tomos.index', compact('tomos', 'mangas', 'editoriales', 'nextTomos', 'lowStockTomos', 'hasLowStock'));
     }
 
-
     public function store(Request $request)
     {
-        $manga_id = $request->input('manga_id');
-        $lastTomo = Tomo::where('manga_id', $manga_id)
-                        ->orderBy('numero_tomo', 'desc')
-                        ->first();
+        // Obtener el número siguiente de tomo
+        $nextNumero = Tomo::where('manga_id', $request->input('manga_id'))
+                          ->max('numero_tomo') + 1;
 
-        if ($lastTomo) {
-            $nextNumero = $lastTomo->numero_tomo + 1;
-            // La fecha mínima para tomos posteriores es el último tomo + 1 mes
-            $minFecha = Carbon::parse($lastTomo->fecha_publicacion)
-                             ->addMonth()
-                             ->format('Y-m-d');
-        } else {
-            $nextNumero = 1;
-            $minFecha = null;
+        // Validar los campos
+        $validated = $request->validate([
+            'manga_id'   => 'required|exists:mangas,id',
+            'numero'     => 'nullable|numeric|unique:tomos,numero,NULL,id,manga_id,' . $request->manga_id,
+            'precio'     => 'required|numeric',
+            'editorial_id' => 'required|exists:editoriales,id',
+            'numero_tomo' => 'required|numeric|unique:tomos,numero_tomo,NULL,id,manga_id,' . $request->manga_id,
+            'formato'    => 'required|in:Tankōbon,Aizōban,Kanzenban,Bunkoban,Wideban',
+            'idioma'     => 'required|in:Español,Inglés,Japonés',
+            'stock'      => 'nullable|numeric|min:0',
+            'fecha_publicacion' => 'required|date|before:' . date('Y-m-d'),
+            'portada'    => 'required|image|mimes:jpeg,png,jpg,webp|max:5120', // máx 5MB
+        ]);
+
+        // Verificar si se recibió un archivo válido
+        if (! $request->hasFile('portada') || ! $request->file('portada')->isValid()) {
+            return back()->withErrors(['portada' => 'No se recibió una imagen válida.']);
         }
 
-        // Reglas de validación
-        $rules = [
-            'manga_id'         => 'required|exists:mangas,id',
-            'editorial_id'     => 'required|exists:editoriales,id',
-            'formato'          => 'required|in:Tankōbon,Aizōban,Kanzenban,Bunkoban,Wideban',
-            'idioma'           => 'required|in:Español,Inglés,Japonés',
-            'precio'           => 'required|numeric',
-            'fecha_publicacion'=> $lastTomo ? "required|date|after_or_equal:$minFecha|before:" . date('Y-m-d') : "required|date|before:" . date('Y-m-d'),
-            'portada'          => 'required|image|max:2048',
-            'stock'            => 'sometimes|numeric|min:0'
-        ];
+        $file = $request->file('portada');
 
-        $validated = $request->validate($rules);
+        // Obtener el manga para usar su título en la carpeta
+        $manga = Manga::findOrFail($validated['manga_id']);
+        $slug = Str::slug($manga->titulo);
 
-        // Asignar automáticamente el número de tomo calculado
-        $validated['numero_tomo'] = $nextNumero;
+        // Crear ruta temporal para guardar la imagen procesada
+        $extension = $file->getClientOriginalExtension();
+        $tempPath = sys_get_temp_dir() . "/portada_{$nextNumero}." . $extension;
+        $file->move(sys_get_temp_dir(), "portada_{$nextNumero}." . $extension);
 
-        // Procesar la imagen de la portada
-        if ($request->hasFile('portada')) {
-            $file = $request->file('portada');
-            $manga = Manga::find($validated['manga_id']);
-            $mangaTitle = Str::slug($manga->titulo);
-            $filename = "portada{$nextNumero}." . $file->getClientOriginalExtension();
-            $destinationPath = public_path("tomo_portada/{$mangaTitle}");
-            if (!file_exists($destinationPath)) {
-                mkdir($destinationPath, 0755, true);
-            }
-            $file->move($destinationPath, $filename);
-            $validated['portada'] = "tomo_portada/{$mangaTitle}/" . $filename;
-        }
+        // Subir la imagen procesada a Cloudinary
+        $upload = (new UploadApi())->upload($tempPath, [
+            'folder'    => "tomo_portadas/{$slug}",
+            'public_id' => "portada_{$nextNumero}",
+        ]);
 
-        // Si no se especifica stock, se asigna 0 por defecto
-        if (!isset($validated['stock'])) {
-            $validated['stock'] = 0;
-        }
+        // Guardar información en base de datos
+        $validated['numero']     = $nextNumero;
+        $validated['portada']    = $upload['secure_url'];
+        $validated['public_id']  = $upload['public_id'];
+        $validated['stock']      = $validated['stock'] ?? 0;
 
         Tomo::create($validated);
 
-        // Recuperar la URL a redirigir (con filtros, si se envió)
-        $redirectTo = $request->input('redirect_to', route('tomos.index'));
-        return redirect($redirectTo)->with('success', 'Tomo creado exitosamente.');
-    }
+        // Eliminar imagen temporal
+        @unlink($tempPath);
 
+        return redirect()->route('tomos.index')
+            ->with('success', 'Tomo creado exitosamente.');
+    }
     public function destroy($id, Request $request)
     {
         $tomo = Tomo::findOrFail($id);
 
-        // (Opcional) Eliminar el archivo de la portada si existe
-        if (file_exists(public_path($tomo->portada))) {
-            unlink(public_path($tomo->portada));
+        // Eliminar la portada de Cloudinary
+        if ($tomo->public_id) {
+            (new UploadApi())->destroy($tomo->public_id);
         }
 
         $tomo->delete();
 
-        // Recuperar la URL de redirección con filtros y paginación (enviada desde el formulario)
         $redirectTo = $request->input('redirect_to', route('tomos.index'));
-
-        // Extraer los parámetros de consulta de la URL
         $urlComponents = parse_url($redirectTo);
-        $queryParams = [];
+        $queryParams   = [];
         if (isset($urlComponents['query'])) {
             parse_str($urlComponents['query'], $queryParams);
         }
 
-        // Reconstruir la consulta similar al método index para obtener la paginación actualizada
+        // Reconstruir la consulta para conservar filtros y paginación
         $query = Tomo::with('manga', 'editorial', 'manga.autor');
-
         if (isset($queryParams['filter_type'])) {
             $filterType = $queryParams['filter_type'];
             if ($filterType == 'idioma' && !empty($queryParams['idioma'])) {
@@ -216,24 +210,20 @@ class TomoController extends Controller
         if (!empty($queryParams['search'])) {
             $search = $queryParams['search'];
             $query->where(function ($q) use ($search) {
-                $q->where('numero_tomo', 'like', "%$search%")
+                $q->where('numero_tomo', 'like', "%{$search}%")
                   ->orWhereHas('manga', function ($q2) use ($search) {
-                      $q2->where('titulo', 'like', "%$search%");
+                      $q2->where('titulo', 'like', "%{$search}%");
                   })
                   ->orWhereHas('editorial', function ($q3) use ($search) {
-                      $q3->where('nombre', 'like', "%$search%");
+                      $q3->where('nombre', 'like', "%{$search}%");
                   });
             });
         }
 
-        // Paginar (suponiendo 6 items por página)
-        $tomos = $query->paginate(6)->appends($queryParams);
-
-        // Obtener la página actual (si se envió) y la última página
+        $tomos     = $query->paginate(6)->appends($queryParams);
         $currentPage = isset($queryParams['page']) ? (int)$queryParams['page'] : 1;
-        $lastPage = $tomos->lastPage();
+        $lastPage    = $tomos->lastPage();
 
-        // Si la página actual es mayor a la última página disponible, ajustar el parámetro 'page'
         if ($currentPage > $lastPage) {
             $queryParams['page'] = $lastPage;
             $redirectTo = route('tomos.index', $queryParams);
@@ -260,44 +250,50 @@ class TomoController extends Controller
         $tomo = Tomo::findOrFail($id);
 
         $rules = [
-            'manga_id'         => 'required|exists:mangas,id',
-            'editorial_id'     => 'required|exists:editoriales,id',
-            'formato'          => 'required|in:Tankōbon,Aizōban,Kanzenban,Bunkoban,Wideban',
-            'idioma'           => 'required|in:Español,Inglés,Japonés',
-            'precio'           => 'required|numeric',
-            'fecha_publicacion'=> 'required|date|before:' . date('Y-m-d'),
-            'stock'            => 'sometimes|numeric|min:0',
+            'manga_id'          => 'required|exists:mangas,id',
+            'editorial_id'      => 'required|exists:editoriales,id',
+            'formato'           => 'required|in:Tankōbon,Aizōban,Kanzenban,Bunkoban,Wideban',
+            'idioma'            => 'required|in:Español,Inglés,Japonés',
+            'precio'            => 'required|numeric',
+            'fecha_publicacion' => 'required|date|before:' . date('Y-m-d'),
+            'stock'             => 'sometimes|numeric|min:0',
         ];
 
         if ($request->hasFile('portada')) {
-            $rules['portada'] = 'image|max:2048';
+            $rules['portada'] = 'image|max:5120'; // máximo 5MB
         }
 
         $validated = $request->validate($rules);
 
         if ($request->hasFile('portada')) {
-            // Eliminar la portada anterior si existe
-            if (file_exists(public_path($tomo->portada))) {
-                unlink(public_path($tomo->portada));
+            // Eliminar imagen anterior de Cloudinary
+            if ($tomo->public_id) {
+                (new UploadApi())->destroy($tomo->public_id);
             }
 
             $file = $request->file('portada');
-            $manga = Manga::find($validated['manga_id']);
-            $mangaTitle = Str::slug($manga->titulo);
-            $filename = "portada{$tomo->numero_tomo}." . $file->getClientOriginalExtension();
-            $destinationPath = public_path("tomo_portada/{$mangaTitle}");
+            $extension = $file->getClientOriginalExtension();
+            $tempPath  = sys_get_temp_dir() . "/portada_{$tomo->numero_tomo}.{$extension}";
+            $file->move(sys_get_temp_dir(), "portada_{$tomo->numero_tomo}.{$extension}");
 
-            if (!file_exists($destinationPath)) {
-                mkdir($destinationPath, 0755, true);
-            }
+            $manga = Manga::findOrFail($validated['manga_id']);
+            $slug  = Str::slug($manga->titulo);
 
-            $file->move($destinationPath, $filename);
-            $validated['portada'] = "tomo_portada/{$mangaTitle}/" . $filename;
+            // Subir nueva portada a Cloudinary
+            $upload = (new UploadApi())->upload($tempPath, [
+                'folder'    => "tomo_portadas/{$slug}",
+                'public_id' => "portada_{$tomo->numero_tomo}",
+            ]);
+
+            // Asignar URL pública y public_id
+            $validated['portada']   = $upload['secure_url'];
+            $validated['public_id'] = $upload['public_id'];
+
+            @unlink($tempPath);
         }
 
         $tomo->update($validated);
 
-        // Utilizar el campo 'redirect_to' para conservar filtros y paginación
         $redirectTo = $request->input('redirect_to', route('tomos.index'));
         return redirect($redirectTo)->with('success', 'Tomo actualizado correctamente.');
     }

@@ -7,6 +7,8 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "cloudinary-labs/cloudinary-laravel": "^3.0",
+        "intervention/image-laravel": "^1.5",
         "jeroennoten/laravel-adminlte": "^3.14",
         "laravel-lang/lang": "^12.17",
         "laravel/framework": "^11.31",
