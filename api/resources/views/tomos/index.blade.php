@@ -38,15 +38,18 @@
                                     <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalEdit-{{ $tomo->id }}">
                                         <i class="fas fa-edit"></i> Editar
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete-{{ $tomo->id }}">
-                                        <i class="fas fa-trash"></i> Eliminar
-                                    </button>
+                                    <form action="{{ route('tomos.destroy', $tomo) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este tomo?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="fas fa-trash"></i> Eliminar
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
 
                             @include('partials.modal_info_tomo', ['tomo' => $tomo])
                             @include('partials.modal_editar_tomo', ['tomo' => $tomo, 'mangas' => $mangas, 'editoriales' => $editoriales])
-                            @include('partials.modal_eliminar_tomo', ['tomo' => $tomo])
                         </div>
                     @endforeach
                 </div>
@@ -128,7 +131,7 @@
 
           <div class="mb-3">
             <label for="numero_tomo" class="form-label">Número de Tomo</label>
-            <input type="number" id="numero_tomo" name="numero_tomo" class="form-control" readonly>
+            <input type="number" id="numero_tomo" name="numero_tomo" class="form-control">
           </div>
 
           <div class="mb-3">
@@ -187,14 +190,17 @@
           $('#select-'+curr).show().prop('disabled', false);
         }
 
-        // Pre-carga de número y fecha
+        // Pre-carga de datos editables
         const nextTomos = @json($nextTomos);
         function actualizarCampos() {
           var m = $('#manga_id').val();
           var e = $('#editorial_id').val();
           var info = (nextTomos[m]||{})[e] || {};
 
-          $('#numero_tomo').val(info.numero ?? 1);
+          $('#numero_tomo').val(info.numero ?? '');
+          $('#precio').val(info.precio ?? '');
+          if (info.formato) $('#formato').val(info.formato);
+          if (info.idioma) $('#idioma').val(info.idioma);
 
           if(info.fechaMin) {
             $('#fecha_publicacion')
@@ -207,7 +213,6 @@
         $('#manga_id, #editorial_id').on('change', actualizarCampos);
         $('#modalCrearTomo').on('show.bs.modal', function(){
           $('#modalCrearTomo form')[0].reset();
-          $('#numero_tomo').val(1);
           $('#fecha_publicacion').removeAttr('min');
         });
       });
