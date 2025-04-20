@@ -88,39 +88,3 @@
   </div>
 </div>
 
-<script>
-  var nextTomos = @json($nextTomos);
-  $(function(){
-    function actualizarModalCrear() {
-      const mangaId      = $('#manga_id').val();
-      const editorialId  = $('#editorial_id').val();
-      const today        = new Date().toISOString().split('T')[0];
-      const info         = nextTomos[mangaId]?.[editorialId] ?? null;
-
-      $('#numero_tomo').val(info ? info.numero : '').prop('readonly', true);
-
-      if (info) {
-        if (info.numero === 1) {
-          $('#fecha_publicacion')
-            .attr('min', today)
-            .attr('max', '')
-            .val(today);
-        } else {
-          $('#fecha_publicacion')
-            .attr('min', info.fecha)
-            .attr('max', '')
-            .val(info.fecha);
-        }
-        $('#precio').val(info.precio ?? '');
-        // Bloquear formato e idioma si no es primer tomo
-        $('#formato, #idioma').prop('disabled', info.numero > 1);
-      } else {
-        $('#fecha_publicacion').removeAttr('min').attr('max','').val('');
-        $('#precio').val('');
-        $('#formato, #idioma').prop('disabled', false);
-      }
-    }
-    $('#manga_id, #editorial_id').on('change', actualizarModalCrear);
-    actualizarModalCrear();
-  });
-</script>

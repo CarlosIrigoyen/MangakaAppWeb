@@ -10,167 +10,197 @@ use Carbon\Carbon;
 use Illuminate\Support\Str;
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 use Cloudinary\Api\Upload\UploadApi;
-
+use Illuminate\Database\Eloquent\Builder;
 
 
 class TomoController extends Controller
 {
     public function index(Request $request)
     {
-        // Obtener parámetros de filtrado
-        $filterType = $request->get('filter_type'); // 'idioma', 'autor', 'manga' o 'editorial'
-        $search     = $request->get('search');
-
-        // Construir la consulta principal (con relaciones)
+        // Consulta base con relaciones
         $query = Tomo::with('manga', 'editorial', 'manga.autor');
 
-        // Aplicar filtros según el criterio
-        if ($filterType) {
-            if ($filterType == 'idioma') {
-                $idioma = $request->get('idioma');
-                if ($idioma) {
-                    $query->where('idioma', $idioma);
-                }
-            } elseif ($filterType == 'autor') {
-                // Se espera que el select de autor envíe el id del autor
-                $autor = $request->get('autor');
-                if ($autor) {
-                    $query->whereHas('manga.autor', function ($q) use ($autor) {
-                        $q->where('id', $autor);
-                    });
-                }
-            } elseif ($filterType == 'manga') {
-                $mangaId = $request->get('manga_id');
-                if ($mangaId) {
-                    $query->where('manga_id', $mangaId);
-                }
-            } elseif ($filterType == 'editorial') {
-                $editorialId = $request->get('editorial_id');
-                if ($editorialId) {
-                    $query->where('editorial_id', $editorialId);
-                }
-            }
+        // Aplicar filtros en método separado
+        $query = $this->applyFilters($request, $query);
+
+        // Ordenamiento y límite
+        if (! $request->filled('filter_type') && ! $request->filled('search')) {
+            // Sin filtros ni búsqueda: últimos 6 tomos
+            $query->orderByDesc('created_at');
+        } elseif ($request->filled('filter_type')) {
+            // Con filtro por tipo
+            $query->join('mangas', 'mangas.id', '=', 'tomos.manga_id')
+                  ->orderBy('mangas.titulo', 'asc')
+                  ->orderBy('tomos.numero_tomo', 'asc')
+                  ->select('tomos.*');
+        } else {
+            // Búsqueda sin filter_type
+            $query->orderBy('numero_tomo', 'asc');
         }
 
-        if ($search) {
+        // Paginación de 6 elementos
+        $tomos = $query->paginate(6)->appends($request->query());
+
+        // Datos adicionales
+        $mangas        = Manga::all();
+        $editoriales   = Editorial::all();
+        // Datos para creación: por combinación manga-editorial
+        $nextTomos     = $this->getNextTomoData($mangas, $editoriales);
+        $lowStockTomos = Tomo::where('stock', '<', 10)->with('manga')->get();
+        $hasLowStock   = $lowStockTomos->isNotEmpty();
+
+        return view('tomos.index', compact(
+            'tomos', 'mangas', 'editoriales',
+            'nextTomos', 'lowStockTomos', 'hasLowStock'
+        ));
+    }
+
+    /**
+     * Aplica filtros de consulta.
+     */
+    protected function applyFilters(Request $request, Builder $query): Builder
+    {
+        if ($idioma = $request->get('idioma')) {
+            $query->where('idioma', $idioma);
+        }
+        if ($autor = $request->get('autor')) {
+            $query->whereHas('manga.autor', function ($q) use ($autor) {
+                $q->where('id', $autor);
+            });
+        }
+        if ($mangaId = $request->get('manga_id')) {
+            $query->where('manga_id', $mangaId);
+        }
+        if ($editorialId = $request->get('editorial_id')) {
+            $query->where('editorial_id', $editorialId);
+        }
+        if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
-                $q->where('numero_tomo', 'like', "%$search%")
+                $q->where('numero_tomo', 'like', "%{$search}%")
                   ->orWhereHas('manga', function ($q2) use ($search) {
-                      $q2->where('titulo', 'like', "%$search%");
+                      $q2->where('titulo', 'like', "%{$search}%");
                   })
                   ->orWhereHas('editorial', function ($q3) use ($search) {
-                      $q3->where('nombre', 'like', "%$search%");
+                      $q3->where('nombre', 'like', "%{$search}%");
                   });
             });
         }
 
-        /**
-         * Ordenamiento:
-         * Si se aplica un filtro basado en algún criterio (por ejemplo, 'editorial', 'idioma', 'autor' o 'manga'),
-         * se ordena primero por el título del manga (alfabéticamente) y luego por el número de tomo.
-         * En caso contrario, se ordena únicamente por el número de tomo.
-         */
-        if ($filterType && in_array($filterType, ['idioma','autor','manga','editorial'])) {
-            // Realizamos un join con la tabla de mangas para ordenar por el título
-            $query->join('mangas', 'mangas.id', '=', 'tomos.manga_id')
-                  ->orderBy('mangas.titulo', 'asc')
-                  ->orderBy('tomos.numero_tomo', 'asc')
-                  ->select('tomos.*'); // Evitamos conflictos al seleccionar sólo columnas de tomos
-        } else {
-            $query->orderBy('numero_tomo', 'asc');
-        }
+        return $query;
+    }
 
-        // Paginar 6 tomos por página y conservar los parámetros en la URL
-        $tomos = $query->paginate(6)->appends($request->query());
+    /**
+     * Genera datos para el modal de creación de tomos,
+     * diferenciado por combinación de manga y editorial.
+     */
+    protected function getNextTomoData($mangas, $editoriales): array
+{
+    $result = [];
+    foreach ($mangas as $manga) {
+        foreach ($editoriales as $editorial) {
+            $last = Tomo::where('manga_id', $manga->id)
+                        ->where('editorial_id', $editorial->id)
+                        ->orderByDesc('numero_tomo')
+                        ->first();
 
-        // Consultar todas las opciones para los selects (para filtros y para el modal de creación)
-        $mangas = Manga::all();
-        $editoriales = Editorial::all();
-
-        // Calcular, para cada manga, el próximo número de tomo y la fecha mínima (último tomo + 1 mes)
-        $nextTomos = [];
-        foreach ($mangas as $manga) {
-            $lastTomo = Tomo::where('manga_id', $manga->id)
-                            ->orderBy('numero_tomo', 'desc')
-                            ->first();
-            if ($lastTomo) {
-                $nextTomos[$manga->id] = [
-                    'numero_tomo' => $lastTomo->numero_tomo + 1,
-                    'fecha'  => \Carbon\Carbon::parse($lastTomo->fecha_publicacion)
-                                      ->addMonth()
-                                      ->format('Y-m-d')
+            if ($last) {
+                $result[$manga->id][$editorial->id] = [
+                    'numero'    => $last->numero_tomo + 1,
+                    'fechaMin'  => Carbon::parse($last->fecha_publicacion)
+                                        ->addMonth()->format('Y-m-d'),
+                    'precio'    => $last->precio,
+                    'formato'   => $last->formato,
+                    'idioma'    => $last->idioma,
+                    'readonly'  => true,
                 ];
             } else {
-                $nextTomos[$manga->id] = [
-                    'numero' => 1,
-                    'fecha'  => null
+                $result[$manga->id][$editorial->id] = [
+                    'numero'    => 1,
+                    'fechaMin'  => null,
+                    'precio'    => null,
+                    'formato'   => null,
+                    'idioma'    => null,
+                    'readonly'  => false,
                 ];
             }
         }
+    }
+    return $result;
+}
 
-        // Obtener todos los tomos con stock menor a 10 (sin depender de los filtros)
-        $lowStockTomos = Tomo::where('stock', '<', 10)->with('manga')->get();
-        $hasLowStock   = $lowStockTomos->isNotEmpty();
+public function store(Request $request)
+{
+    // Calculamos el número siguiente automáticamente
+    $nextNumero = Tomo::where('manga_id', $request->manga_id)
+                      ->where('editorial_id', $request->editorial_id)
+                      ->max('numero_tomo') + 1;
 
-        return view('tomos.index', compact('tomos', 'mangas', 'editoriales', 'nextTomos', 'lowStockTomos', 'hasLowStock'));
+    // Determinamos fecha mínima solo para tomos >1
+    if ($nextNumero > 1) {
+        $ultimaFecha = Tomo::where('manga_id', $request->manga_id)
+                           ->where('editorial_id', $request->editorial_id)
+                           ->orderByDesc('numero_tomo')
+                           ->value('fecha_publicacion');
+
+        $fechaMin = Carbon::parse($ultimaFecha)
+                          ->addMonth()
+                          ->format('Y-m-d');
+    } else {
+        $fechaMin = null;
     }
 
-    public function store(Request $request)
-    {
-        // Obtener el número siguiente de tomo
-        $nextNumero = Tomo::where('manga_id', $request->input('manga_id'))
-                          ->max('numero_tomo') + 1;
+    // Reglas de validación básicas
+    $rules = [
+        'manga_id'         => 'required|exists:mangas,id',
+        'editorial_id'     => 'required|exists:editoriales,id',
+        'formato'          => 'required|in:Tankōbon,Aizōban,Kanzenban,Bunkoban,Wideban',
+        'idioma'           => 'required|in:Español,Inglés,Japonés',
+        'precio'           => 'required|numeric',
+        'stock'            => 'nullable|integer|min:0',
+        'portada'          => 'required|image|mimes:jpeg,png,jpg,webp|max:5120',
+    ];
 
-        // Validar los campos
-        $validated = $request->validate([
-            'manga_id'   => 'required|exists:mangas,id',
-            'numero'     => 'nullable|numeric|unique:tomos,numero,NULL,id,manga_id,' . $request->manga_id,
-            'precio'     => 'required|numeric',
-            'editorial_id' => 'required|exists:editoriales,id',
-            'numero_tomo' => 'required|numeric|unique:tomos,numero_tomo,NULL,id,manga_id,' . $request->manga_id,
-            'formato'    => 'required|in:Tankōbon,Aizōban,Kanzenban,Bunkoban,Wideban',
-            'idioma'     => 'required|in:Español,Inglés,Japonés',
-            'stock'      => 'nullable|numeric|min:0',
-            'fecha_publicacion' => 'required|date|before:' . date('Y-m-d'),
-            'portada'    => 'required|image|mimes:jpeg,png,jpg,webp|max:5120', // máx 5MB
-        ]);
-
-        // Verificar si se recibió un archivo válido
-        if (! $request->hasFile('portada') || ! $request->file('portada')->isValid()) {
-            return back()->withErrors(['portada' => 'No se recibió una imagen válida.']);
-        }
-
-        $file = $request->file('portada');
-
-        // Obtener el manga para usar su título en la carpeta
-        $manga = Manga::findOrFail($validated['manga_id']);
-        $slug = Str::slug($manga->titulo);
-
-        // Crear ruta temporal para guardar la imagen procesada
-        $extension = $file->getClientOriginalExtension();
-        $tempPath = sys_get_temp_dir() . "/portada_{$nextNumero}." . $extension;
-        $file->move(sys_get_temp_dir(), "portada_{$nextNumero}." . $extension);
-
-        // Subir la imagen procesada a Cloudinary
-        $upload = (new UploadApi())->upload($tempPath, [
-            'folder'    => "tomo_portadas/{$slug}",
-            'public_id' => "portada_{$nextNumero}",
-        ]);
-
-        // Guardar información en base de datos
-        $validated['numero']     = $nextNumero;
-        $validated['portada']    = $upload['secure_url'];
-        $validated['public_id']  = $upload['public_id'];
-        $validated['stock']      = $validated['stock'] ?? 0;
-
-        Tomo::create($validated);
-
-        // Eliminar imagen temporal
-        @unlink($tempPath);
-
-        return redirect()->route('tomos.index')
-            ->with('success', 'Tomo creado exitosamente.');
+    // Validación condicional de fecha_publicacion
+    if ($fechaMin) {
+        // Para tomos >1: fecha >= fechaMin
+        $rules['fecha_publicacion'] = [
+            'required',
+            'date',
+            'after_or_equal:'.$fechaMin,
+        ];
+    } else {
+        // Para primer tomo: cualquier fecha válida
+        $rules['fecha_publicacion'] = ['required','date'];
     }
+
+    $validated = $request->validate($rules);
+
+    // Subida de imagen y creación (igual que antes)
+    $file = $request->file('portada');
+    $manga = Manga::findOrFail($validated['manga_id']);
+    $slug  = Str::slug($manga->titulo);
+    $extension = $file->getClientOriginalExtension();
+    $tempPath  = sys_get_temp_dir()."/portada_{$nextNumero}.{$extension}";
+    $file->move(sys_get_temp_dir(), "portada_{$nextNumero}.{$extension}");
+
+    $upload = (new UploadApi())->upload($tempPath, [
+        'folder'    => "tomo_portadas/{$slug}",
+        'public_id' => "portada_{$nextNumero}",
+    ]);
+
+    $validated['numero_tomo']  = $nextNumero;
+    $validated['portada']      = $upload['secure_url'];
+    $validated['public_id']    = $upload['public_id'];
+    $validated['stock']       = $validated['stock'] ?? 0;
+
+    Tomo::create($validated);
+
+    @unlink($tempPath);
+
+    return redirect()->route('tomos.index')
+                     ->with('success', 'Tomo creado exitosamente.');
+}
+
     public function destroy($id, Request $request)
     {
         $tomo = Tomo::findOrFail($id);

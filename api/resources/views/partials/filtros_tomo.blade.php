@@ -83,12 +83,6 @@
     </div>
 
 </div>
-    <!-- Mensaje cuando no se ha seleccionado ningún filtro o búsqueda -->
-    @if( ! request()->has('filter_type') && ! request()->filled('search') )
-        <div class="alert alert-info text-center">
-            Por favor, seleccione un filtro.
-        </div>
-    @endif
 
     <div class="modal fade" id="modalStock" tabindex="-1" aria-labelledby="modalUpdateMultipleStockLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
