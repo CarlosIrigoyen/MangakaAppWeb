@@ -1,4 +1,4 @@
-// resources/views/partials/modal_crear_tomo.blade.php
+
 <div class="modal fade" id="modalCrearTomo" tabindex="-1" aria-labelledby="modalCrearTomoLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
