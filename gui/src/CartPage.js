@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { CartContext } from './CartContext';
 import { Button, Image } from 'react-bootstrap';
 
+// Base URL de Cloudinary (defínela en .env como REACT_APP_CLOUDINARY_URL)
+const CLOUDINARY_BASE_URL = process.env.REACT_APP_CLOUDINARY_URL ||
+  'https://res.cloudinary.com/TU_CLOUD_NAME/image/upload';
+
 const CartPage = () => {
   const { cart, updateCartItem, clearCart, removeCartItem } = useContext(CartContext);
   const navigate = useNavigate();
@@ -71,6 +75,11 @@ const CartPage = () => {
         <div className="overflow-auto flex-grow-1 bg-dark p-3 rounded">
           {cart.map((item) => {
             const itemTotal = item.precio * item.quantity;
+            // Determinar URL de imagen: si item.portada es URL completa o public ID
+            const imageUrl = item.portada?.startsWith('http')
+              ? item.portada
+              : `${CLOUDINARY_BASE_URL}/${item.portada}`;
+
             return (
               <div
                 key={item.id}
@@ -78,7 +87,7 @@ const CartPage = () => {
               >
                 <div className="me-md-3 mb-2 mb-md-0">
                   <Image
-                    src={`http://localhost:8000/${item.portada}`}
+                    src={imageUrl}
                     alt={item.manga?.titulo}
                     thumbnail
                     style={{ maxWidth: '80px' }}
@@ -150,4 +159,3 @@ const CartPage = () => {
 };
 
 export default CartPage;
-
