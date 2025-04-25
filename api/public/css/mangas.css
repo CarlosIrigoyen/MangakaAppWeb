@@ -1,0 +1,13 @@
+    <style>
+        /* Contenedor flex para los botones de acción */
+        .acciones-container {
+            display: flex;
+            gap: 10px; /* Espacio entre botones */
+            justify-content: center;
+            align-items: center;
+        }
+        /* Evitar parpadeos en la tabla */
+        #Contenido {
+            visibility: hidden;
+        }
+    </style>    
