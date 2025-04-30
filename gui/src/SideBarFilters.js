@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
 const SidebarFilters = ({ onFilterChange }) => {
-  // Estado para filtros exclusivos
+  // Estado para filtros exclusivos y de precio
   const [filters, setFilters] = useState({
     author: null,
     language: null,
     manga: null,
     editorial: null,
-    priceRange: [0, 100], // Valores por defecto, se actualizarán
+    minPrice: '',
+    maxPrice: '',
     searchText: '',
     applyPriceFilter: 0,
   });
@@ -17,14 +18,9 @@ const SidebarFilters = ({ onFilterChange }) => {
     languages: [],
     mangas: [],
     editorials: [],
-    minPrice: 0,
-    maxPrice: 0,
   });
 
-  // Imprime el rango de precios actual del filtro, no del availableFilters
-  console.log('Rango de precios actual:', filters.priceRange);
-
-  // Estados para secciones colapsables
+  // Secciones colapsables
   const [openSections, setOpenSections] = useState({
     authors: true,
     languages: true,
@@ -33,19 +29,13 @@ const SidebarFilters = ({ onFilterChange }) => {
     price: true,
   });
 
-  // Obtener filtros disponibles del backend
+  // Cargar filtros disponibles desde el backend
   useEffect(() => {
     async function fetchFilters() {
       try {
         const response = await fetch('http://localhost:8000/api/filters');
         const result = await response.json();
-        // Actualizamos el estado de los filtros disponibles
         setAvailableFilters(result);
-        // También actualizamos el rango de precios del filtro con los valores recibidos
-        setFilters((prev) => ({
-          ...prev,
-          priceRange: [result.minPrice, result.maxPrice],
-        }));
       } catch (error) {
         console.error('Error fetching filters', error);
       }
@@ -53,11 +43,10 @@ const SidebarFilters = ({ onFilterChange }) => {
     fetchFilters();
   }, []);
 
-  // Función para actualizar filtros y enviar al componente padre
+  // Actualiza filtros y notifica al padre
   const updateFilters = (newFilters) => {
     setFilters(newFilters);
-    console.log('Actualizando filtros, priceRange:', newFilters.priceRange);
-    let transformedFilters = {
+    const transformed = {
       authors: newFilters.author ? [newFilters.author] : [],
       languages: newFilters.language ? [newFilters.language] : [],
       mangas: newFilters.manga ? [newFilters.manga] : [],
@@ -66,32 +55,39 @@ const SidebarFilters = ({ onFilterChange }) => {
       sortBy: 'titulo,numero_tomo',
     };
 
-    if (newFilters.applyPriceFilter === 1) {
-      const formattedMin = parseFloat(newFilters.priceRange[0]).toFixed(2);
-      const formattedMax = parseFloat(newFilters.priceRange[1]).toFixed(2);
-      transformedFilters = {
-        ...transformedFilters,
-        applyPriceFilter: 1,
-        minPrice: formattedMin,
-        maxPrice: formattedMax,
-      };
+    if (newFilters.applyPriceFilter === 1 && newFilters.minPrice !== '' && newFilters.maxPrice !== '') {
+      transformed.applyPriceFilter = 1;
+      transformed.minPrice = parseFloat(newFilters.minPrice).toFixed(2);
+      transformed.maxPrice = parseFloat(newFilters.maxPrice).toFixed(2);
+
+  console.log('→ enviando filtros al padre:', transformed);
     }
 
-    console.log('Filtros transformados enviados al padre:', transformedFilters);
-    onFilterChange(transformedFilters);
+    onFilterChange(transformed);
   };
 
-  // Para filtros exclusivos: si se hace clic sobre el mismo valor se deselecciona
-  const handleExclusiveChange = (filterType, value) => {
-    const current = filters[filterType];
-    const updated = current === value ? null : value;
-    updateFilters({ ...filters, [filterType]: updated });
+  // Exclusivos
+  const handleExclusiveChange = (field, value) => {
+    const updated = filters[field] === value ? null : value;
+    updateFilters({ ...filters, [field]: updated });
   };
 
-  // Actualiza el searchText y dispara el updateFilters inmediatamente
-  const handleSearchTextChange = (event) => {
-    updateFilters({ ...filters, searchText: event.target.value });
+  // Texto de búsqueda
+  const handleSearchTextChange = (e) => {
+    updateFilters({ ...filters, searchText: e.target.value });
   };
+
+  // Inputs de precio
+  const handlePriceInputChange = (e) => {
+    const { name, value } = e.target;
+    // Solo dígitos
+    if (/^\d*$/.test(value)) {
+      setFilters({ ...filters, [name]: value });
+    }
+  };
+
+  const applyPrice = () => updateFilters({ ...filters, applyPriceFilter: 1 });
+  const clearPriceFilter = () => updateFilters({ ...filters, applyPriceFilter: 0, minPrice: '', maxPrice: '' });
 
   const toggleSection = (section) => {
     setOpenSections({ ...openSections, [section]: !openSections[section] });
@@ -109,18 +105,17 @@ const SidebarFilters = ({ onFilterChange }) => {
         </div>
         {openSections.authors && (
           <div>
-            {availableFilters.authors.map((author) => (
-              <div key={author.id}>
+            {availableFilters.authors.map(a => (
+              <div key={a.id}>
                 <input
                   type="radio"
-                  id={`author-${author.id}`}
+                  id={`author-${a.id}`}
                   name="author"
-                  value={author.id}
-                  checked={filters.author === author.id}
-                  onChange={() => handleExclusiveChange('author', author.id)}
+                  checked={filters.author === a.id}
+                  onChange={() => handleExclusiveChange('author', a.id)}
                 />
-                <label htmlFor={`author-${author.id}`} className="ms-1">
-                  {author.nombre + ' ' + author.apellido}
+                <label htmlFor={`author-${a.id}`} className="ms-1">
+                  {a.nombre} {a.apellido}
                 </label>
               </div>
             ))}
@@ -139,19 +134,16 @@ const SidebarFilters = ({ onFilterChange }) => {
         </div>
         {openSections.languages && (
           <div>
-            {availableFilters.languages.map((language, index) => (
-              <div key={index}>
+            {availableFilters.languages.map((lang, i) => (
+              <div key={i}>
                 <input
                   type="radio"
-                  id={`language-${language}`}
+                  id={`language-${lang}`}
                   name="language"
-                  value={language}
-                  checked={filters.language === language}
-                  onChange={() => handleExclusiveChange('language', language)}
+                  checked={filters.language === lang}
+                  onChange={() => handleExclusiveChange('language', lang)}
                 />
-                <label htmlFor={`language-${language}`} className="ms-1">
-                  {language}
-                </label>
+                <label htmlFor={`language-${lang}`} className="ms-1">{lang}</label>
               </div>
             ))}
           </div>
@@ -169,19 +161,16 @@ const SidebarFilters = ({ onFilterChange }) => {
         </div>
         {openSections.mangas && (
           <div>
-            {availableFilters.mangas.map((manga) => (
-              <div key={manga.id}>
+            {availableFilters.mangas.map(m => (
+              <div key={m.id}>
                 <input
                   type="radio"
-                  id={`manga-${manga.id}`}
+                  id={`manga-${m.id}`}
                   name="manga"
-                  value={manga.id}
-                  checked={filters.manga === manga.id}
-                  onChange={() => handleExclusiveChange('manga', manga.id)}
+                  checked={filters.manga === m.id}
+                  onChange={() => handleExclusiveChange('manga', m.id)}
                 />
-                <label htmlFor={`manga-${manga.id}`} className="ms-1">
-                  {manga.titulo}
-                </label>
+                <label htmlFor={`manga-${m.id}`} className="ms-1">{m.titulo}</label>
               </div>
             ))}
           </div>
@@ -199,21 +188,67 @@ const SidebarFilters = ({ onFilterChange }) => {
         </div>
         {openSections.editorials && (
           <div>
-            {availableFilters.editorials.map((editorial) => (
-              <div key={editorial.id}>
+            {availableFilters.editorials.map(e => (
+              <div key={e.id}>
                 <input
                   type="radio"
-                  id={`editorial-${editorial.id}`}
+                  id={`editorial-${e.id}`}
                   name="editorial"
-                  value={editorial.id}
-                  checked={filters.editorial === editorial.id}
-                  onChange={() => handleExclusiveChange('editorial', editorial.id)}
+                  checked={filters.editorial === e.id}
+                  onChange={() => handleExclusiveChange('editorial', e.id)}
                 />
-                <label htmlFor={`editorial-${editorial.id}`} className="ms-1">
-                  {editorial.nombre}
-                </label>
+                <label htmlFor={`editorial-${e.id}`} className="ms-1">{e.nombre}</label>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+      <hr />
+
+      {/* Precio */}
+      <div className="mb-3">
+        <div className="d-flex justify-content-between align-items-center">
+          <h6 className="mb-0">Precio</h6>
+          <button className="btn btn-sm btn-light" onClick={() => toggleSection('price')}>
+            {openSections.price ? '-' : '+'}
+          </button>
+        </div>
+        {openSections.price && (
+          <div>
+            <div className="mb-2">
+              <label className="form-label">Mínimo</label>
+              <input
+                type="number"
+                name="minPrice"
+                min="0"
+                step="1"
+                className="form-control"
+                placeholder="Ej: 100"
+                value={filters.minPrice}
+                onChange={handlePriceInputChange}
+              />
+            </div>
+            <div className="mb-2">
+              <label className="form-label">Máximo</label>
+              <input
+                type="number"
+                name="maxPrice"
+                min="0"
+                step="1"
+                className="form-control"
+                placeholder="Ej: 500"
+                value={filters.maxPrice}
+                onChange={handlePriceInputChange}
+              />
+            </div>
+            <div className="d-flex justify-content-between">
+              <button className="btn btn-primary btn-sm" onClick={applyPrice} disabled={!filters.minPrice || !filters.maxPrice}>
+                Aplicar
+              </button>
+              <button className="btn btn-light btn-sm" onClick={clearPriceFilter}>
+                Limpiar
+              </button>
+            </div>
           </div>
         )}
       </div>

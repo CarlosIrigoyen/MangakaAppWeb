@@ -1,11 +1,9 @@
 // App.js
 import React, { useState, useEffect, useContext } from 'react';
-
-
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { Navbar, Container, Form, Button, Dropdown } from 'react-bootstrap';
 import { FaShoppingCart } from 'react-icons/fa';
-import SidebarFilters from './SideBarFilters';
+import SideBarFilters from './SideBarFilters';
 import RegisterModal from './RegisterModal';
 import LoginModal from './LoginModal';
 import InfoModal from './InfoModal';
@@ -14,6 +12,7 @@ import CartPage from './CartPage';
 import { CartProvider, CartContext } from './CartContext';
 
 const MainApp = () => {
+  // Estados
   const [showRegister, setShowRegister] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [user, setUser] = useState(null);
@@ -27,27 +26,28 @@ const MainApp = () => {
     languages: [],
     mangas: [],
     editorials: [],
-    priceRange: [0, 999999],
     searchText: '',
+    sortBy: 'titulo,numero_tomo',
+    applyPriceFilter: 0,
+    minPrice: '',
+    maxPrice: '',
   });
-
-  // Obtenemos la información del carrito del contexto
   const { cart } = useContext(CartContext);
   const cartCount = cart.length;
 
+  // Carga inicial
   useEffect(() => {
-    checkAuth(); // Verificar usuario autenticado
+    checkAuth();
     handleFilterChange(currentFilters, 1);
   }, []);
 
-  // ---------- REGISTRO ----------
+  // Registro
   const handleRegisterSubmit = async (event) => {
     event.preventDefault();
     const nombre = event.target.elements.formNombre.value;
     const email = event.target.elements.formEmailRegister.value;
     const password = event.target.elements.formPasswordRegister.value;
     const data = { nombre, email, password };
-
     try {
       const response = await fetch('http://localhost:8000/api/register', {
         method: 'POST',
@@ -67,13 +67,12 @@ const MainApp = () => {
     }
   };
 
-  // ---------- LOGIN ----------
+  // Login
   const handleLoginSubmit = async (event) => {
     event.preventDefault();
     const email = event.target.elements.formEmailLogin.value;
     const password = event.target.elements.formPasswordLogin.value;
     const data = { email, password };
-
     try {
       const response = await fetch('http://localhost:8000/api/login', {
         method: 'POST',
@@ -93,7 +92,7 @@ const MainApp = () => {
     }
   };
 
-  // ---------- OBTENER USUARIO AUTENTICADO ----------
+  // Verificar usuario autenticado
   const checkAuth = async () => {
     const token = localStorage.getItem('token');
     if (!token) return;
@@ -111,18 +110,15 @@ const MainApp = () => {
       } else {
         localStorage.removeItem('token');
       }
-    } catch (error) {
+    } catch {
       localStorage.removeItem('token');
     }
   };
 
-  // ---------- LOGOUT ----------
+  // Logout
   const handleLogout = async () => {
     const token = localStorage.getItem('token');
-    if (!token) {
-      setUser(null);
-      return;
-    }
+    if (!token) { setUser(null); return; }
     try {
       await fetch('http://localhost:8000/api/logout', {
         method: 'POST',
@@ -139,26 +135,23 @@ const MainApp = () => {
     }
   };
 
-  // ---------- OBTENER TOMOS (FILTROS y PAGINACIÓN) ----------
+  // Fetch de tomos con filtros y paginación
   const handleFilterChange = async (filters, page = 1) => {
     setCurrentFilters(filters);
-
     const queryParams = new URLSearchParams();
     if (filters.authors.length) queryParams.append('authors', filters.authors.join(','));
     if (filters.languages.length) queryParams.append('languages', filters.languages.join(','));
     if (filters.mangas.length) queryParams.append('mangas', filters.mangas.join(','));
     if (filters.editorials.length) queryParams.append('editorials', filters.editorials.join(','));
     if (filters.searchText) queryParams.append('search', filters.searchText);
-    if (filters.priceRange) {
-      queryParams.append('minPrice', filters.priceRange[0]);
-      queryParams.append('maxPrice', filters.priceRange[1]);
+    if (filters.applyPriceFilter === 1 && filters.minPrice !== '' && filters.maxPrice !== '') {
+      queryParams.append('applyPriceFilter', 1);
+      queryParams.append('minPrice', filters.minPrice);
+      queryParams.append('maxPrice', filters.maxPrice);
     }
     queryParams.append('page', page);
-
     try {
-      const response = await fetch(
-        `http://localhost:8000/api/public/tomos?${queryParams.toString()}`
-      );
+      const response = await fetch(`http://localhost:8000/api/public/tomos?${queryParams.toString()}`);
       const result = await response.json();
       setTomos(result.data);
       setPagination({
@@ -217,7 +210,6 @@ const MainApp = () => {
             {user ? (
               <>
                 <span className="me-2">Hola, {user.nombre}</span>
-                {/* Dropdown del carrito */}
                 <Dropdown align="end" className="me-2">
                   <Dropdown.Toggle variant="outline-light" id="dropdown-cart">
                     <FaShoppingCart /> {cartCount}
@@ -252,7 +244,7 @@ const MainApp = () => {
 
       {/* CONTENEDOR PRINCIPAL */}
       <div className="d-flex" style={{ minHeight: 'calc(100vh - 56px)' }}>
-        <SidebarFilters onFilterChange={(filters) => handleFilterChange(filters, 1)} />
+        <SideBarFilters onFilterChange={(filters) => handleFilterChange(filters, 1)} />
         <TomoList
           tomos={tomos}
           pagination={pagination}
@@ -273,22 +265,24 @@ const MainApp = () => {
         onHide={() => setShowLogin(false)}
         onSubmit={handleLoginSubmit}
       />
-      <InfoModal show={showInfoModal} onClose={() => setShowInfoModal(false)} tomo={selectedTomo} />
+      <InfoModal
+        show={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        tomo={selectedTomo}
+      />
     </div>
   );
 };
 
-const App = () => {
-  return (
-    <CartProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<MainApp />} />
-          <Route path="/cart" element={<CartPage />} />
-        </Routes>
-      </Router>
-    </CartProvider>
-  );
-};
+const App = () => (
+  <CartProvider>
+    <Router>
+      <Routes>
+        <Route path="/" element={<MainApp />} />
+        <Route path="/cart" element={<CartPage />} />
+      </Routes>
+    </Router>
+  </CartProvider>
+);
 
 export default App;
