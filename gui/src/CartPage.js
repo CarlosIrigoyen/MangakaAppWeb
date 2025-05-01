@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CartContext } from './CartContext';
 import { Button, Image } from 'react-bootstrap';
 
-// Base URL de Cloudinary (defínela en .env como REACT_APP_CLOUDINARY_URL)
+// Base URL de Cloudinary
 const CLOUDINARY_BASE_URL = process.env.REACT_APP_CLOUDINARY_URL ||
   'https://res.cloudinary.com/TU_CLOUD_NAME/image/upload';
 
@@ -34,22 +34,25 @@ const CartPage = () => {
 
   const handleBuy = async () => {
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:8000/api/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
-          items: cart.map((item) => ({
-            id: item.id,
-            quantity: item.quantity,
-          })),
+          items: cart.map(item => ({ id: item.id, quantity: item.quantity })),
         }),
       });
       const result = await response.json();
+
       if (response.ok) {
-        alert('Compra realizada exitosamente.');
+        // Limpia carrito y redirige a página de factura
         clearCart();
+        navigate(`/invoice/${result.factura_id}`, { state: { ventaId: result.venta_id } });
       } else {
-        alert('Error al realizar la compra.');
+        alert(result.message || 'Error al realizar la compra.');
       }
     } catch (error) {
       console.error('Error en compra:', error);
@@ -75,7 +78,6 @@ const CartPage = () => {
         <div className="overflow-auto flex-grow-1 bg-dark p-3 rounded">
           {cart.map((item) => {
             const itemTotal = item.precio * item.quantity;
-            // Determinar URL de imagen: si item.portada es URL completa o public ID
             const imageUrl = item.portada?.startsWith('http')
               ? item.portada
               : `${CLOUDINARY_BASE_URL}/${item.portada}`;
