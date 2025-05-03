@@ -1,9 +1,9 @@
-// src/DetalleFacturaPage.js
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Table, Spinner, Alert, Button } from 'react-bootstrap';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import './DetalleFacturaPage.css';
 
 const DetalleFacturaPage = () => {
   const { id } = useParams();
@@ -32,98 +32,96 @@ const DetalleFacturaPage = () => {
   }, [id]);
 
   if (loading) return <Spinner animation="border" />;
-  if (error)   return <Alert variant="danger">{error}</Alert>;
+  if (error) return <Alert variant="danger">{error}</Alert>;
+  if (!factura) return <Alert variant="warning">Factura no encontrada</Alert>;
+
+  const cliente = factura.cliente || {};
 
   const descargarComoPdf = async () => {
     const element = facturaRef.current;
-    // 1) Captura a canvas en alta resolución
     const canvas = await html2canvas(element, { scale: 2 });
     const imgData = canvas.toDataURL('image/png');
-
-    // 2) Configura jsPDF y márgenes
     const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
-    const pageWidth  = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 40;  // margen de 40pt por cada lado
-
-    // 3) Calcula dimensiones de la imagen para que respete márgenes
-    const imgWidth  = pageWidth - margin * 2;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const margin = 40;
+    const imgWidth = pageWidth - margin * 2;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    // 4) Inserta imagen con offset igual al margen
     pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
-
-    // 5) Guarda el PDF
-    const nombre = factura.numero.replace(/^FAC-/, '');
-    pdf.save(`Factura-${nombre}.pdf`);
+    // Generar nombre solo con dígitos
+    const numeroSoloDigitos = (factura.numero || '').replace(/\D/g, '');
+    pdf.save(`Factura-${numeroSoloDigitos}.pdf`);
   };
 
-  const fechaSolo = new Date(factura.fecha).toLocaleDateString();
+  const fechaSolo = factura.fecha
+    ? new Date(factura.fecha).toLocaleDateString()
+    : '';
+
+  // Mostrar número solo con dígitos
+  const numeroSoloDigitos = (factura.numero || '').replace(/\D/g, '');
 
   return (
-    <div className="p-5 bg-white text-dark" style={{ maxWidth: 800, margin: 'auto' }}>
-      {/* ─────────────── CONTENEDOR A CAPTURAR ─────────────── */}
-      <div ref={facturaRef}>
-        {/* Encabezado con logo */}
-        <div className="d-flex justify-content-end mb-4">
-          <img src="/img/Mangaka.png" alt="Logo" width={120} />
-        </div>
+    <div className="invoice-container p-5 bg-white text-dark" style={{ maxWidth: 800, margin: 'auto' }}>
+      <div ref={facturaRef} className="invoice-content">
 
-        {/* Datos */}
-        <div className="row mb-4">
-          <div className="col-6">
-            <h6>Datos del Cliente</h6>
-            <p className="mb-1">{factura.cliente.nombre}</p>
+        {/* Encabezado */}
+        <div className="d-flex justify-content-between align-items-center invoice-header mb-4">
+          <div className="company-info">
+            <img src="/img/Mangaka.png" alt="Logo" width={120} />
+            <h5>Mangaka Baka Shop</h5>
           </div>
-          <div className="col-6 text-end">
-            <h6>Factura Nº {factura.numero.replace(/^FAC-/, '')}</h6>
-            <p className="mb-1">Fecha: {fechaSolo}</p>
+          <div className="invoice-meta text-end">
+            <h4 className="text-primary">FACTURA</h4>
+            <p><strong>Nº:</strong> {numeroSoloDigitos}</p>
+            <p><strong>Fecha:</strong> {fechaSolo}</p>
           </div>
         </div>
 
-        {/* Tabla */}
-        <Table bordered>
-          <thead className="bg-dark text-white">
-            <tr>
-              <th>Concepto</th>
-              <th className="text-center">Cantidad</th>
-              <th className="text-end">Precio</th>
-              <th className="text-end">Total</th>
+        {/* Bloque Facturar A */}
+        <div className="address-block mb-4">
+          <h6 className="bg-primary text-white p-2">FACTURAR A:</h6>
+          <p className="m-2">{cliente.nombre || ''}</p>
+        </div>
+
+        {/* Tabla de detalles */}
+        <Table bordered className="invoice-table">
+          <thead>
+            <tr className="bg-primary text-white">
+              <th>DESCRIPCIÓN</th>
+              <th className="text-center">CANTIDAD</th>
+              <th className="text-end">PRECIO</th>
+              <th className="text-end">TOTAL</th>
             </tr>
           </thead>
           <tbody>
-            {factura.detalles.map(d => (
-              <tr key={d.tomo_id}>
+            {factura.detalles?.map(d => (
+              <tr key={d.id || Math.random()}>
                 <td>{`${d.titulo} – Tomo ${d.numero_tomo}`}</td>
-                <td className="text-center">{d.cantidad}</td>
-                {/* Símbolo cambiado a $ */}
-                <td className="text-end">${(+d.precio_unitario).toFixed(2)}</td>
-                <td className="text-end">${(+d.subtotal).toFixed(2)}</td>
+                <td className="text-center">{d.cantidad ?? 0}</td>
+                <td className="text-end">${(+d.precio_unitario || 0).toFixed(2)}</td>
+                <td className="text-end">${(+d.subtotal || 0).toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
         </Table>
 
-        {/* Totales */}
+        {/* Totales (solo subtotal y total) */}
         <div className="d-flex justify-content-end mt-3">
-          <div style={{ width: 200 }}>
+          <div className="totals-box p-3" style={{ width: 240 }}>
             <div className="d-flex justify-content-between">
               <span>Subtotal</span>
-              <span>${factura.detalles
-                .reduce((sum, d) => sum + Number(d.subtotal), 0)
-                .toFixed(2)
-              }</span>
+              <span>${factura.detalles?.reduce((sum, d) => sum + Number(d.subtotal || 0), 0).toFixed(2)}</span>
             </div>
             <hr />
             <div className="d-flex justify-content-between fw-bold">
               <span>Total</span>
-              <span>${(+factura.total).toFixed(2)}</span>
+              <span>${(+factura.total || 0).toFixed(2)}</span>
             </div>
           </div>
         </div>
+
       </div>
 
-      {/* ───────── BOTÓN DESCARGAR ───────── */}
+      {/* Botón descargar */}
       <div className="text-end mt-4">
         <Button onClick={descargarComoPdf}>Descargar Factura (PDF)</Button>
       </div>
