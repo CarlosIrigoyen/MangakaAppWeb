@@ -1,21 +1,47 @@
-// App.js
+// src/App.js
 import React, { useState, useEffect, useContext } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { Navbar, Container, Form, Button, Dropdown } from 'react-bootstrap';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
+  useLocation,
+  useNavigate
+} from 'react-router-dom';
+import {
+  Navbar,
+  Container,
+  Form,
+  Button,
+  Dropdown,
+  Alert
+} from 'react-bootstrap';
 import { FaShoppingCart } from 'react-icons/fa';
+
 import SideBarFilters from './SideBarFilters';
 import RegisterModal from './RegisterModal';
 import LoginModal from './LoginModal';
 import InfoModal from './InfoModal';
 import TomoList from './TomoList';
 import CartPage from './CartPage';
+import FacturasPage from './FacturasPage';
+import DetalleFacturaPage from './DetalleFacturaPage';
+
 import { CartProvider, CartContext } from './CartContext';
 
 const MainApp = () => {
-  // Estados
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Mensaje tras compra
+  const [purchaseMessage, setPurchaseMessage] = useState('');
+
+  // Estados de modales y usuario
   const [showRegister, setShowRegister] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [user, setUser] = useState(null);
+
+  // Tomos y filtros
   const [tomos, setTomos] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,8 +56,9 @@ const MainApp = () => {
     sortBy: 'titulo,numero_tomo',
     applyPriceFilter: 0,
     minPrice: '',
-    maxPrice: '',
+    maxPrice: ''
   });
+
   const { cart } = useContext(CartContext);
   const cartCount = cart.length;
 
@@ -48,11 +75,12 @@ const MainApp = () => {
     const email = event.target.elements.formEmailRegister.value;
     const password = event.target.elements.formPasswordRegister.value;
     const data = { nombre, email, password };
+
     try {
       const response = await fetch('http://localhost:8000/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(data)
       });
       const result = await response.json();
       if (response.ok) {
@@ -73,11 +101,12 @@ const MainApp = () => {
     const email = event.target.elements.formEmailLogin.value;
     const password = event.target.elements.formPasswordLogin.value;
     const data = { email, password };
+
     try {
       const response = await fetch('http://localhost:8000/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(data)
       });
       const result = await response.json();
       if (response.ok) {
@@ -92,7 +121,7 @@ const MainApp = () => {
     }
   };
 
-  // Verificar usuario autenticado
+  // Verificar token
   const checkAuth = async () => {
     const token = localStorage.getItem('token');
     if (!token) return;
@@ -101,15 +130,12 @@ const MainApp = () => {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'
+        }
       });
       const result = await response.json();
-      if (response.ok) {
-        setUser(result);
-      } else {
-        localStorage.removeItem('token');
-      }
+      if (response.ok) setUser(result);
+      else localStorage.removeItem('token');
     } catch {
       localStorage.removeItem('token');
     }
@@ -124,8 +150,8 @@ const MainApp = () => {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'
+        }
       });
     } catch (error) {
       console.error('Error en logout:', error);
@@ -135,7 +161,7 @@ const MainApp = () => {
     }
   };
 
-  // Fetch de tomos con filtros y paginación
+  // Obtener tomos con filtros
   const handleFilterChange = async (filters, page = 1) => {
     setCurrentFilters(filters);
     const queryParams = new URLSearchParams();
@@ -150,29 +176,28 @@ const MainApp = () => {
       queryParams.append('maxPrice', filters.maxPrice);
     }
     queryParams.append('page', page);
+
     try {
-      const response = await fetch(`http://localhost:8000/api/public/tomos?${queryParams.toString()}`);
+      const response = await fetch(
+        `http://localhost:8000/api/public/tomos?${queryParams.toString()}`
+      );
       const result = await response.json();
       setTomos(result.data);
       setPagination({
         currentPage: result.current_page,
         lastPage: result.last_page,
-        total: result.total,
+        total: result.total
       });
     } catch (error) {
       console.error('Error al obtener tomos:', error);
     }
   };
 
-  const handlePageChange = (page) => {
-    handleFilterChange(currentFilters, page);
-  };
-
+  const handlePageChange = (page) => handleFilterChange(currentFilters, page);
   const handleShowInfo = (tomo) => {
     setSelectedTomo(tomo);
     setShowInfoModal(true);
   };
-
   const handleSearch = () => {
     const newFilters = { ...currentFilters, searchText: searchQuery };
     handleFilterChange(newFilters, 1);
@@ -180,25 +205,44 @@ const MainApp = () => {
 
   return (
     <div className="bg-dark text-white min-vh-100">
+      {/* Alerta de compra */}
+      {purchaseMessage && (
+        <Alert
+          variant="success"
+          dismissible
+          onClose={() => setPurchaseMessage('')}
+          className="m-3"
+        >
+          {purchaseMessage}
+        </Alert>
+      )}
+
       {/* NAVBAR */}
       <Navbar bg="dark" variant="dark" expand="lg" className="border-bottom border-light shadow">
         <Container fluid>
-          <Navbar.Brand href="#home">
+          <Navbar.Brand as={Link} to="/">
             <img
               src="/img/Mangaka.png"
               alt="Logo Mangaka"
               width="40"
               height="40"
-              className="d-inline-block align-top rounded-circle"
+              className="rounded-circle"
             />
             <span className="ms-2">Mangaka Baka Shop</span>
           </Navbar.Brand>
-          <Form className="d-flex mx-auto" style={{ width: '50%' }}>
+
+          <Form
+            className="d-flex mx-auto"
+            style={{ width: '50%' }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSearch();
+            }}
+          >
             <Form.Control
               type="search"
               placeholder="Buscar"
               className="me-2"
-              aria-label="Buscar"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -206,12 +250,24 @@ const MainApp = () => {
               Buscar
             </Button>
           </Form>
+
           <div className="d-flex ms-auto align-items-center">
             {user ? (
               <>
                 <span className="me-2">Hola, {user.nombre}</span>
+
+                {/* Botón Mis Facturas */}
+                <Button
+                  variant="outline-light"
+                  className="me-2"
+                  as={Link}
+                  to="/facturas"
+                >
+                  Mis Facturas
+                </Button>
+
                 <Dropdown align="end" className="me-2">
-                  <Dropdown.Toggle variant="outline-light" id="dropdown-cart">
+                  <Dropdown.Toggle variant="outline-light">
                     <FaShoppingCart /> {cartCount}
                   </Dropdown.Toggle>
                   <Dropdown.Menu>
@@ -224,13 +280,18 @@ const MainApp = () => {
                     )}
                   </Dropdown.Menu>
                 </Dropdown>
+
                 <Button variant="danger" onClick={handleLogout}>
                   Cerrar Sesión
                 </Button>
               </>
             ) : (
               <>
-                <Button variant="primary" className="me-2" onClick={() => setShowRegister(true)}>
+                <Button
+                  variant="primary"
+                  className="me-2"
+                  onClick={() => setShowRegister(true)}
+                >
                   Registrarse
                 </Button>
                 <Button variant="secondary" onClick={() => setShowLogin(true)}>
@@ -244,7 +305,7 @@ const MainApp = () => {
 
       {/* CONTENEDOR PRINCIPAL */}
       <div className="d-flex" style={{ minHeight: 'calc(100vh - 56px)' }}>
-        <SideBarFilters onFilterChange={(filters) => handleFilterChange(filters, 1)} />
+        <SideBarFilters onFilterChange={(f) => handleFilterChange(f, 1)} />
         <TomoList
           tomos={tomos}
           pagination={pagination}
@@ -280,6 +341,8 @@ const App = () => (
       <Routes>
         <Route path="/" element={<MainApp />} />
         <Route path="/cart" element={<CartPage />} />
+        <Route path="/facturas" element={<FacturasPage />} />
+        <Route path="/facturas/:id" element={<DetalleFacturaPage />} />
       </Routes>
     </Router>
   </CartProvider>
