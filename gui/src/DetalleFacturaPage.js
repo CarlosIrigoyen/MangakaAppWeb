@@ -89,7 +89,7 @@ const DetalleFacturaPage = () => {
               <th>DESCRIPCIÓN</th>
               <th className="text-center">CANTIDAD</th>
               <th className="text-end">PRECIO</th>
-              <th className="text-end">TOTAL</th>
+              <th className="text-end">IMPORTE</th>
             </tr>
           </thead>
           <tbody>
@@ -107,10 +107,6 @@ const DetalleFacturaPage = () => {
         {/* Totales (solo subtotal y total) */}
         <div className="d-flex justify-content-end mt-3">
           <div className="totals-box p-3" style={{ width: 240 }}>
-            <div className="d-flex justify-content-between">
-              <span>Subtotal</span>
-              <span>${factura.detalles?.reduce((sum, d) => sum + Number(d.subtotal || 0), 0).toFixed(2)}</span>
-            </div>
             <hr />
             <div className="d-flex justify-content-between fw-bold">
               <span>Total</span>
