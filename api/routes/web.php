@@ -18,6 +18,9 @@ Route::resource('generos', GeneroController::class);
 Route::resource('mangas', MangaController::class)->except(['update']);
 Route::put('tomos/updateMultipleStock', [TomoController::class, 'updateMultipleStock'])->name('tomos.updateMultipleStock');
 Route::resource('tomos', TomoController::class);
+// Ruta para reactivar (dar de alta) un tomo inactivo
+Route::put('tomos/{tomo}/reactivate', [TomoController::class, 'reactivate'])
+     ->name('tomos.reactivate');
 // Usamos PUT para la actualización del manga
 Route::put('/mangas/{id}', [MangaController::class, 'update'])->name('mangas.update');
 
