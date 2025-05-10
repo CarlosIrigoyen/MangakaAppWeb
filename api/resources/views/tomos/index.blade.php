@@ -7,7 +7,7 @@
 @stop
 
 @section('css')
-    <!-- Bootstrap y DataTables CSS -->
+    <!-- Estilos de Bootstrap y DataTables -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.bootstrap5.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/responsive/3.0.3/css/responsive.bootstrap5.css">
@@ -43,13 +43,15 @@
                                           <i class="fas fa-check-circle"></i> Dar de alta
                                         </button>
                                     @else
-                                        <!-- Botones Información, Editar, Eliminar -->
+                                        <!-- Botón Información -->
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#modalInfo-{{ $tomo->id }}">
                                             <i class="fas fa-info-circle"></i> Información
                                         </button>
+                                        <!-- Botón Editar -->
                                         <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalEdit-{{ $tomo->id }}">
                                             <i class="fas fa-edit"></i> Editar
                                         </button>
+                                        <!-- Botón Eliminar -->
                                         <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete-{{ $tomo->id }}">
                                             <i class="fas fa-trash"></i> Eliminar
                                         </button>
@@ -57,7 +59,7 @@
                                 </div>
                             </div>
 
-                            <!-- Modales de Información y Edición -->
+                            <!-- Modales siempre incluidos -->
                             @include('partials.modal_info_tomo', ['tomo' => $tomo])
                             @include('partials.modal_editar_tomo', ['tomo' => $tomo, 'mangas' => $mangas, 'editoriales' => $editoriales])
 
@@ -97,9 +99,9 @@
         <!-- Paginación personalizada -->
         <div class="separator"></div>
         <div class="pagination-container">
-            <button class="btn btn-light" onclick="location.href='{{ $tomos->previousPageUrl() }}'" {{ $tomos->onFirstPage() ? 'disabled' : '' }}>&laquo; Anterior</button>
+            <button class="btn btn-light" onclick="window.location.href='{{ $tomos->previousPageUrl() }}'" {{ $tomos->onFirstPage() ? 'disabled' : '' }}>&laquo; Anterior</button>
             <span> Página {{ $tomos->currentPage() }} / {{ $tomos->lastPage() }} </span>
-            <button class="btn btn-light" onclick="location.href='{{ $tomos->nextPageUrl() }}'" {{ $tomos->currentPage() == $tomos->lastPage() ? 'disabled' : '' }}>Siguiente &raquo;</button>
+            <button class="btn btn-light" onclick="window.location.href='{{ $tomos->nextPageUrl() }}'" {{ $tomos->currentPage() == $tomos->lastPage() ? 'disabled' : '' }}>Siguiente &raquo;</button>
         </div>
     @endif
 </div>
@@ -112,7 +114,7 @@
 @stop
 
 @section('js')
-    <!-- jQuery, Bootstrap y DataTables JS -->
+    <!-- Scripts de Bootstrap y DataTables -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js"></script>
@@ -163,4 +165,3 @@
         });
       });
     </script>
-@stop
