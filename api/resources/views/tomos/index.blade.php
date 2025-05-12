@@ -53,7 +53,7 @@
                                         </button>
                                         <!-- Botón Eliminar -->
                                         <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalDelete-{{ $tomo->id }}">
-                                            <i class="fas fa-trash"></i> Eliminar
+                                            <i class="fas fa-trash"></i> Dar De Baja
                                         </button>
                                     @endif
                                 </div>

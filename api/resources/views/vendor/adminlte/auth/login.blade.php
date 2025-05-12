@@ -32,19 +32,27 @@
             margin-bottom: 10px;
         }
     </style>
+
+    {{-- Ajuste extra para que la imagen de fondo ocupe TODO el ancho --}}
+    <style>
+        body.login-page {
+            /* fuerza la imagen al 100% de ancho manteniendo proporción */
+            background-size: 100% auto !important;
+        }
+    </style>
 @stop
 
-@php( $login_url        = View::getSection('login_url')          ?? config('adminlte.login_url', 'login') )
-@php( $register_url     = View::getSection('register_url')       ?? config('adminlte.register_url', 'register') )
-@php( $password_reset_url = View::getSection('password_reset_url') ?? config('adminlte.password_reset_url', 'password/reset') )
+@php( $login_url           = View::getSection('login_url')           ?? config('adminlte.login_url', 'login') )
+@php( $register_url        = View::getSection('register_url')        ?? config('adminlte.register_url', 'register') )
+@php( $password_reset_url  = View::getSection('password_reset_url')  ?? config('adminlte.password_reset_url', 'password/reset') )
 
 @if (config('adminlte.use_route_url', false))
-    @php( $login_url         = $login_url ? route($login_url) : '' )
-    @php( $register_url      = $register_url ? route($register_url) : '' )
+    @php( $login_url          = $login_url ? route($login_url) : '' )
+    @php( $register_url       = $register_url ? route($register_url) : '' )
     @php( $password_reset_url = $password_reset_url ? route($password_reset_url) : '' )
 @else
-    @php( $login_url         = $login_url ? url($login_url) : '' )
-    @php( $register_url      = $register_url ? url($register_url) : '' )
+    @php( $login_url          = $login_url ? url($login_url) : '' )
+    @php( $register_url       = $register_url ? url($register_url) : '' )
     @php( $password_reset_url = $password_reset_url ? url($password_reset_url) : '' )
 @endif
 
