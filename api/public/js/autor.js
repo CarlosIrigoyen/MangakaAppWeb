@@ -128,7 +128,7 @@ function editarAutor(id) {
 
 function configurarEliminar(id) {
     // 1) Actualizar la acción del form
-    $('#formEliminar').attr('action', '/generos/' + id);
+    $('#formEliminar').attr('action', '/autores/' + id);
 
     // 2) Reset del modal
     $('#eliminar-body-text')
