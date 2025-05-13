@@ -138,5 +138,28 @@ function editarDibujante(id) {
 
 // Función para configurar la eliminación del dibujante
 function configurarEliminar(id) {
+    $('#eliminar-body-text').text('¿Estás seguro de que deseas eliminar este dibujante?');
+    $('#btnConfirmEliminar').prop('disabled', false).text('Eliminar');
     $('#formEliminar').attr('action', '/dibujantes/' + id);
+
+    $.ajax({
+        url: '/dibujantes/' + id + '/check-mangas',
+        method: 'GET',
+        success: function(data) {
+            if (data.mangas_count > 0) {
+                $('#eliminar-body-text').html(
+                    'El dibujante <strong>' + data.nombre + '</strong> tiene ' +
+                    data.mangas_count + ' manga(s) asociados y no se puede eliminar.'
+                );
+                $('#btnConfirmEliminar')
+                    .prop('disabled', true)
+                    .text('No se puede eliminar');
+            }
+        },
+        error: function() {
+            $('#eliminar-body-text').text('Error al comprobar dependencias.');
+            $('#btnConfirmEliminar').prop('disabled', true);
+        }
+    });
 }
+

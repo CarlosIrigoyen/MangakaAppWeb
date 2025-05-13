@@ -100,4 +100,12 @@ class DibujanteController extends Controller
 
         return redirect()->route('dibujantes.index')->with('success', 'Dibujante dado de baja correctamente.');
     }
+    public function checkMangas($id)
+    {
+        $dibujante = Dibujante::withCount('mangas')->findOrFail($id);
+        return response()->json([
+            'mangas_count' => $dibujante->mangas_count,
+            'nombre'       => $dibujante->nombre . ' ' . $dibujante->apellido,
+        ]);
+    }
 }

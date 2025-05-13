@@ -91,4 +91,15 @@ class AutorController extends Controller
 
         return redirect()->route('autores.index')->with('success', 'Autor inactivado correctamente.');
     }
+    /**
+     * * Devuelve JSON con la cuenta de mangas asociados
+     * */
+    public function checkMangas($id){
+        $autor = Autor::withCount('mangas')->findOrFail($id);
+        return response()->json([
+            'mangas_count' => $autor->mangas_count,
+            'nombre'       => $autor->nombre . ' ' . $autor->apellido,
+        ]);
+    }
+
 }

@@ -128,5 +128,32 @@ function editarAutor(id) {
 
 // Función para configurar la eliminación del autor
 function configurarEliminar(id) {
+    // primero reseteamos el estado del modal
+    $('#eliminar-body-text').text('¿Estás seguro de que deseas eliminar este autor?');
+    $('#btnConfirmEliminar').prop('disabled', false).text('Eliminar');
+    // actualizamos la acción del form
     $('#formEliminar').attr('action', '/autores/' + id);
+
+    // hacemos la petición AJAX para saber cuántos mangas tiene
+    $.ajax({
+        url: '/autores/' + id + '/check-mangas',
+        method: 'GET',
+        success: function(data) {
+            if (data.mangas_count > 0) {
+                // si tiene mangas, mostramos mensaje y deshabilitamos
+                $('#eliminar-body-text').html(
+                    'El autor <strong>' + data.nombre + '</strong> tiene ' +
+                    data.mangas_count + ' manga(s) asociados y no se puede eliminar.'
+                );
+                $('#btnConfirmEliminar')
+                    .prop('disabled', true)
+                    .text('No se puede eliminar');
+            }
+        },
+        error: function() {
+            // opcional: manejar error de la petición
+            $('#eliminar-body-text').text('Error al comprobar dependencias.');
+            $('#btnConfirmEliminar').prop('disabled', true);
+        }
+    });
 }

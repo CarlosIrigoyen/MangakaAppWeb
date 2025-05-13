@@ -61,4 +61,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::put('tomos/{tomo}/reactivate',
         [TomoController::class, 'reactivate'])
         ->name('tomos.reactivate');
+
+    // Para checkaer si el autor tiene mangas asociados
+    Route::get('/autores/{id}/check-mangas', [AutorController::class, 'checkMangas'])
+    ->name('autores.checkMangas');
+    // Para checkaer si el dibujante tiene mangas asociados
+    Route::get('/dibujantes/{id}/check-mangas', [DibujanteController::class, 'checkMangas'])
+    ->name('dibujantes.checkMangas');
 });
