@@ -139,13 +139,13 @@ function configurarEliminar(id) {
 
     // 3) Chequeo vía AJAX
     $.ajax({
-        url: '/generos/' + id + '/check-mangas',
+        url: '/autores/' + id + '/check-mangas',
         method: 'GET',
         success: function(data) {
             if (data.mangas_count > 0) {
                 console.log(data.mangas_count);
                 $('#eliminar-body-text').html(
-                    'El género <strong>' + data.nombre + '</strong> tiene ' +
+                    'El Autor <strong>' + data.nombre + '</strong> tiene ' +
                     data.mangas_count + ' manga(s) asociados y no se puede eliminar.'
                 );
                 $('#btnConfirmEliminar')
