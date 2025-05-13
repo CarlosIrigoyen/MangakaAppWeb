@@ -26,7 +26,7 @@ class DibujanteController extends Controller
         $validated = $request->validate([
             'nombre'            => 'required|string|max:255|regex:/^[\p{L}\s]+$/u',
             'apellido'          => 'required|string|max:255|regex:/^[\p{L}\s]+$/u',
-            'fecha_nacimiento'  => 'required|date|before:' . Carbon::now()->subYears(18)->toDateString(),],[
+            'fecha_nacimiento'  => 'required|date|before_or_equal:' . Carbon::now()->subYears(18)->toDateString(),],[
             'fecha_nacimiento.before' => 'El dibujante debe tener al menos 18 años.',
         ]);
         // Buscar si ya existe un dibujante con el mismo nombre, apellido y fecha de nacimiento
