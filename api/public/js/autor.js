@@ -132,7 +132,7 @@ function configurarEliminar(id) {
 
     // 2) Reset del modal
     $('#eliminar-body-text')
-      .text('¿Estás seguro de que deseas eliminar este género?');
+      .text('¿Estás seguro de que deseas eliminar este autor?');
     $('#btnConfirmEliminar')
       .prop('disabled', false)
       .text('Eliminar');
