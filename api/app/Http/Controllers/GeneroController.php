@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Genero;
+use App\Models\Manga;
 use Illuminate\Http\Request;
 
 class GeneroController extends Controller
@@ -22,58 +23,48 @@ class GeneroController extends Controller
 
     // Guardar un nuevo género
     public function store(Request $request)
-{
-    // Validar que se reciba algún texto
-    $request->validate([
-        'nombre' => 'required|string',
-    ]);
-
-    // Dividir la cadena ingresada por comas y limpiar espacios
-    $nombres = array_filter(array_map('trim', explode(',', $request->nombre)));
-
-    // Opcional: acumular errores si algún género ya existe
-    $errores = [];
-
-    foreach ($nombres as $nombre) {
-        // Validar que el nombre sea único
-        if (Genero::where('nombre', $nombre)->exists()) {
-            $errores[] = "El género '{$nombre}' ya existe.";
-            continue;
-        }
-
-        // Validar longitud o cualquier otra regla adicional si es necesario
-        if (strlen($nombre) > 255) {
-            $errores[] = "El género '{$nombre}' supera los 255 caracteres permitidos.";
-            continue;
-        }
-
-        // Si todo está ok, se crea el registro
-        Genero::create([
-            'nombre' => $nombre,
+    {
+        // Validar que se reciba algún texto
+        $request->validate([
+            'nombre' => 'required|string',
         ]);
-    }
 
-    // Si hubo errores, se puede redirigir de vuelta con un mensaje, por ejemplo:
-    if (count($errores) > 0) {
+        // Dividir la cadena ingresada por comas y limpiar espacios
+        $nombres = array_filter(array_map('trim', explode(',', $request->nombre)));
+
+        // Acumular errores si algún género ya existe o por longitud
+        $errores = [];
+
+        foreach ($nombres as $nombre) {
+            if (Genero::where('nombre', $nombre)->exists()) {
+                $errores[] = "El género '{$nombre}' ya existe.";
+                continue;
+            }
+            if (strlen($nombre) > 255) {
+                $errores[] = "El género '{$nombre}' supera los 255 caracteres permitidos.";
+                continue;
+            }
+            Genero::create(['nombre' => $nombre]);
+        }
+
+        if (count($errores) > 0) {
+            return redirect()->route('generos.index')
+                ->with('error', implode(' ', $errores));
+        }
+
         return redirect()->route('generos.index')
-            ->with('error', implode(' ', $errores));
+            ->with('success', 'Géneros creados exitosamente');
     }
-
-    return redirect()->route('generos.index')
-        ->with('success', 'Géneros creados exitosamente');
-}
-
 
     // Mostrar el formulario para editar un género
-    public function edit(Genero $genero){
-        // Verifica si la petición es AJAX, pero si sabes que solo se usará vía AJAX, simplemente retorna el JSON.
+    public function edit(Genero $genero)
+    {
         if (request()->ajax()) {
             return response()->json($genero);
         }
-
-        // Opcional: Si se accede de forma tradicional, puedes retornar la vista
         return view('generos.edit', compact('genero'));
     }
+
     // Actualizar un género
     public function update(Request $request, Genero $genero)
     {
@@ -81,9 +72,7 @@ class GeneroController extends Controller
             'nombre' => 'required|string|max:255|unique:generos,nombre,' . $genero->id,
         ]);
 
-        $genero->update([
-            'nombre' => $request->nombre,
-        ]);
+        $genero->update(['nombre' => $request->nombre]);
 
         return redirect()->route('generos.index')->with('success', 'Género actualizado exitosamente');
     }
@@ -93,5 +82,16 @@ class GeneroController extends Controller
     {
         $genero->delete();
         return redirect()->route('generos.index')->with('success', 'Género eliminado exitosamente');
+    }
+
+    // Devuelve JSON con la cantidad de mangas asociados
+    public function checkMangas($id)
+    {
+        $genero = Genero::withCount('mangas')->findOrFail($id);
+
+        return response()->json([
+            'mangas_count' => $genero->mangas_count,
+            'nombre'       => $genero->nombre,
+        ]);
     }
 }

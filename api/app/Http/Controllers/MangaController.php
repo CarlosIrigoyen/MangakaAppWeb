@@ -22,21 +22,21 @@ class MangaController extends Controller
     return view('mangas.index', compact('mangas', 'autores', 'dibujantes', 'generos'));
 }
 
-public function store(Request $request)
-{
-    // Validar los datos del formulario, se omite en_publicacion pues se gestionará manualmente
+public function store(Request $request){
+    // Validación
     $request->validate([
-        'titulo'         => 'required|string|max:255',
-        'autor_id'       => 'required|exists:autores,id',
-        'dibujante_id'   => 'required|exists:dibujantes,id',
-        'generos'        => 'required|array',
-        'generos.*'      => 'exists:generos,id',
+        'titulo'       => 'required|string|max:255',
+        'autor_id'     => 'required|exists:autores,id',
+        'dibujante_id' => 'required|exists:dibujantes,id',
+        'generos'      => 'required|array',
+        'generos.*'    => 'exists:generos,id',
+
     ]);
 
-    // Determinar el valor de en_publicacion según si el checkbox está marcado
-    $en_publicacion = $request->has('en_publicacion') ? 'si' : 'no';
 
-    // Crear el nuevo manga
+    $en_publicacion = $request->input('en_publicacion', 'si');
+
+    // Crear el nuevo Manga
     $manga = Manga::create([
         'titulo'         => $request->titulo,
         'autor_id'       => $request->autor_id,
@@ -44,10 +44,12 @@ public function store(Request $request)
         'en_publicacion' => $en_publicacion,
     ]);
 
-    // Asociar los géneros seleccionados
+    // Asociar géneros
     $manga->generos()->attach($request->generos);
 
-    return redirect()->route('mangas.index')->with('success', 'Manga creado exitosamente.');
+    return redirect()
+        ->route('mangas.index')
+        ->with('success', 'Manga creado exitosamente.');
 }
 
 

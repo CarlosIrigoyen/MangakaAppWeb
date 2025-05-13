@@ -68,4 +68,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // Para checkaer si el dibujante tiene mangas asociados
     Route::get('/dibujantes/{id}/check-mangas', [DibujanteController::class, 'checkMangas'])
     ->name('dibujantes.checkMangas');
+    // Para Géneros: ruta de chequeo de mangas asociados
+    Route::get('/generos/{id}/check-mangas', [GeneroController::class, 'checkMangas'])
+    ->name('generos.checkMangas');
 });

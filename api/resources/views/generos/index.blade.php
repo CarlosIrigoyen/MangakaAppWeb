@@ -1,9 +1,9 @@
 @extends('adminlte::page')
 
-@section('title', 'Listado de Editoriales')
+@section('title', 'Listado de Géneros')
 
 @section('content_header')
-    <h1>Listado de Generos</h1>
+    <h1>Listado de Géneros</h1>
 @stop
 
 @section('content')
@@ -22,7 +22,6 @@
 
     <!-- Ocultar la tabla inicialmente para evitar parpadeos -->
     <style>
-        /* Se usa el id "editorialesTable" para la tabla */
         #generosTable {
             visibility: hidden;
         }
@@ -38,37 +37,6 @@
     <script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.js"></script>
     <script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.js"></script>
 
-    <script>
-        $(document).ready(function() {
-            // Inicialización de DataTable para editoriales usando el id "editorialesTable"
-            var table = $('#generosTable').DataTable({
-                responsive: true,
-                autoWidth: false,"language": {
-                    "lengthMenu": "Mostrar _MENU_ registros por página",
-                    "zeroRecords": "No se encontraron resultados",
-                    "info": "Mostrando _START_ a _END_ de _TOTAL_ registros",
-                    "infoEmpty": "Mostrando 0 a 0 de 0 registros",
-                    "infoFiltered": "(filtrado de _MAX_ registros totales)",
-                    "search": "Buscar:",
-                    emptyTable: "No se encontraron generos",
-
-                },
-                initComplete: function () {
-                    // Mostrar la tabla una vez finalizada la inicialización
-                    $('#generosTable').css('visibility', 'visible');
-                }
-            });
-
-            // Recalcular columnas al cambiar la orientación o redimensionar la ventana
-            $(window).on('orientationchange resize', function(){
-                table.columns.adjust().responsive.recalc();
-            });
-
-            // Forzar el ajuste de columnas cuando se muestren los modales (crear, editar o eliminar)
-            $('#modalEditar, #modalCrear, #modalEliminar').on('shown.bs.modal', function () {
-                table.columns.adjust().responsive.recalc();
-            });
-        });
-    </script>
+    <!--script-->
     <script src="{{ asset('js/genero.js') }}"></script>
 @stop

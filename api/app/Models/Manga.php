@@ -9,14 +9,15 @@ class Manga extends Model
 {
     use HasFactory;
 
-    // Nombre de la tabla (opcional si se sigue la convención, pero se incluye por claridad)
     protected $table = 'mangas';
-
-    // Campos asignables masivamente
-    protected $fillable = ['titulo', 'autor_id', 'dibujante_id', 'en_publicacion'];
+    protected $fillable = [
+        'titulo',
+        'autor_id',
+        'dibujante_id',
+        'en_publicacion',
+    ];
 
     /**
-     * Relación con el modelo Autor.
      * Un manga pertenece a un autor.
      */
     public function autor()
@@ -25,7 +26,6 @@ class Manga extends Model
     }
 
     /**
-     * Relación con el modelo Dibujante.
      * Un manga pertenece a un dibujante.
      */
     public function dibujante()
@@ -34,11 +34,16 @@ class Manga extends Model
     }
 
     /**
-     * Relación muchos a muchos con el modelo Genero.
-     * Un manga puede tener muchos géneros y un género puede estar asociado a muchos mangas.
+     * Relación muchos a muchos con Genero.
+     * Indicamos la tabla pivote 'manga_genero' y sus claves foráneas.
      */
     public function generos()
     {
-        return $this->belongsToMany(Genero::class, 'manga_genero', 'manga_id', 'genero_id');
+        return $this->belongsToMany(
+            Genero::class,    // Modelo relacionado
+            'manga_genero',   // Tabla pivote
+            'manga_id',       // Clave foránea de este modelo en la pivote
+            'genero_id'       // Clave foránea del modelo Genero en la pivote
+        );
     }
 }

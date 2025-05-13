@@ -52,7 +52,7 @@ class TomoController extends Controller
         }
 
         $tomos         = $query->paginate(6)->appends($request->query());
-        $mangas        = Manga::all();
+        $mangas        = Manga::where('en_publicacion', 'si')->get();
         $editoriales   = Editorial::all();
         $nextTomos     = $this->getNextTomoData($mangas, $editoriales);
         $lowStockTomos = Tomo::where('stock','<',10)->with('manga')->get();
