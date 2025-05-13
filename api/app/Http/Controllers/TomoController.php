@@ -13,6 +13,12 @@ use Cloudinary\Api\Upload\UploadApi;
 
 class TomoController extends Controller
 {
+     /**
+     * Muestra la lista de tomos (página de administración).
+     * - Permite alternar entre tomos activos e inactivos.
+     * - Aplica filtros de idioma, autor, manga, editorial y búsqueda.
+     * - Ordena y pagina resultados según parámetros de consulta.
+     */
     public function index(Request $request)
     {
         // 1) Base de la query según filtro
@@ -56,6 +62,13 @@ class TomoController extends Controller
             'tomos','mangas','editoriales','nextTomos','lowStockTomos','hasLowStock'
         ));
     }
+
+    /**
+     * Reactiva un tomo previamente marcado como inactivo.
+     * - Busca el tomo sin el scope 'activo'.
+     * - Actualiza el campo activo a true.
+     * - Redirige al listado de inactivos con mensaje de éxito.
+     */
     public function reactivate($id, Request $request)
 {
     $tomo = Tomo::withoutGlobalScope('activo')->findOrFail($id);
@@ -66,6 +79,13 @@ class TomoController extends Controller
         ->with('success', 'Tomo reactivado correctamente.');
 }
 
+    /**
+        * Aplica filtros a la consulta de tomos:
+        * - idioma
+        * - autor
+        * - manga
+        * - editorial
+    */
 
     protected function applyFilters(Request $request, Builder $query): Builder
     {
@@ -90,7 +110,10 @@ class TomoController extends Controller
         }
         return $query;
     }
-
+    /**
+         * Genera los datos del próximo tomo para cada par manga-editorial.
+         * Devuelve un array multidimensional:
+     */
     protected function getNextTomoData($mangas, $editoriales): array
     {
         $result = [];
@@ -122,7 +145,10 @@ class TomoController extends Controller
         }
         return $result;
     }
-
+        /**
+        * * Almacena un nuevo tomo en la base de datos.
+        * - Maneja la logica de la subida de la portada a coludinary.
+        */
     public function store(Request $request)
     {
         $nextNumero = Tomo::withoutGlobalScope('activo')
@@ -152,11 +178,15 @@ class TomoController extends Controller
         ];
         $validated = $request->validate($rules);
 
-        $file = $request->file('portada');
-        $slug = Str::slug(Manga::findOrFail($validated['manga_id'])->titulo);
-        $ext = $file->getClientOriginalExtension();
-        $temp = sys_get_temp_dir() . "/portada_{$nextNumero}.{$ext}";
-        $file->move(sys_get_temp_dir(), basename($temp));
+        // === Cloudinary: preparar y subir la portada ===
+        $file = $request->file('portada'); //se obitiene la imagen de la portada
+        $slug = Str::slug(Manga::findOrFail($validated['manga_id'])->titulo); // se obtiene el slug del manga
+        $ext = $file->getClientOriginalExtension(); // se obtiene la extension
+        $temp = sys_get_temp_dir() . "/portada_{$nextNumero}.{$ext}"; // se crea un archivo temporal
+        $file->move(sys_get_temp_dir(), basename($temp)); // se mueve el archivo a la carpeta temporal
+        // se sube la portada
+        // folder es la carpeta donde se van a guardar las imagenes
+        // public_id es el nombre de la imagen
         $upload = (new UploadApi())->upload($temp, [
             'folder' => "tomo_portadas/$slug",
             'public_id' => "portada_{$nextNumero}",
@@ -176,10 +206,11 @@ class TomoController extends Controller
             'activo' => true,
         ]);
 
+        // se borra el archivo temporal
         @unlink($temp);
         return redirect()->route('tomos.index')->with('success', 'Tomo creado exitosamente.');
     }
-
+    // === Actualizar un tomo ===
     public function edit($id)
     {
         $tomo = Tomo::with('manga', 'editorial')->findOrFail($id);
@@ -187,7 +218,7 @@ class TomoController extends Controller
         $editoriales = Editorial::all();
         return response()->json(compact('tomo', 'mangas', 'editoriales'));
     }
-
+    //actualzar tomo con los nuevos datos recibidos
     public function update(Request $request, $id)
     {
         $tomo = Tomo::findOrFail($id);
@@ -206,7 +237,7 @@ class TomoController extends Controller
         }
 
         $validated = $request->validate($rules);
-
+        // si se ha cambiado la portada se actualiza en cloudinary
         if ($request->hasFile('portada')) {
             $file = $request->file('portada');
             $ext = $file->getClientOriginalExtension();
@@ -226,7 +257,7 @@ class TomoController extends Controller
         return redirect($request->input('redirect_to', route('tomos.index')))
                ->with('success', 'Tomo actualizado correctamente.');
     }
-
+    // soft delete de un tomo
     public function destroy($id, Request $request)
     {
         $tomo = Tomo::withoutGlobalScope('activo')->findOrFail($id);
@@ -235,7 +266,7 @@ class TomoController extends Controller
         return redirect($request->input('redirect_to', route('tomos.index')))
                ->with('success', 'Tomo marcado como inactivo.');
     }
-
+    //actualiza el stock de varios tomos con stock bajo
     public function updateMultipleStock(Request $request)
     {
         $request->validate([
@@ -250,7 +281,7 @@ class TomoController extends Controller
 
         return redirect()->route('tomos.index')->with('success', 'Stocks actualizados correctamente.');
     }
-
+    // api para obtener los tomos y mostrarlos en el front de react
     public function indexPublic(Request $request)
     {
         $query = Tomo::with('manga', 'editorial', 'manga.autor', 'manga.generos');

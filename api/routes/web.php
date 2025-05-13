@@ -7,6 +7,7 @@ use App\Http\Controllers\EditorialController;
 use App\Http\Controllers\MangaController;
 use App\Http\Controllers\GeneroController;
 use App\Http\Controllers\TomoController;
+use Illuminate\Auth\Events\Login;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,10 +16,11 @@ use App\Http\Controllers\TomoController;
 | Sólo accesible si NO estás autenticado; las rutas de login/registro
 | las maneja Jetstream/Fortify automáticamente.
 */
+//redirecciona al login
 Route::middleware('guest')->group(function () {
     Route::get('/', function () {
-        return view('welcome');
-    })->name('welcome');
+        return redirect('login');
+    });
 });
 
 /*
