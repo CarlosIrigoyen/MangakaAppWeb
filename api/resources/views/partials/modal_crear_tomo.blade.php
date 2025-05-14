@@ -62,7 +62,7 @@
 
             <div class="mb-3">
               <label for="precio" class="form-label">Precio</label>
-              <input type="number" step="0.01" id="precio" name="precio" class="form-control" required>
+              <input type="number" step="0.01" min="0.01" id="precio"name="precio"class="form-control"required>
             </div>
 
             <div class="mb-3">

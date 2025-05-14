@@ -7,17 +7,13 @@
 @stop
 
 @section('css')
-    <!-- Cargar CSS de DataTables anticipadamente para evitar parpadeos -->
+    <!-- DataTables & FontAwesome -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.bootstrap5.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/responsive/3.0.3/css/responsive.bootstrap5.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-
     <style>
-        #Contenido {
-            visibility: hidden;
-        }
-
+        #Contenido { visibility: hidden; }
         .acciones-container {
             display: flex;
             gap: 10px;
@@ -28,18 +24,33 @@
 @stop
 
 @section('content')
-    <!-- Contenedor con el Card de Bootstrap -->
+    @php
+        $status = $status ?? request('status', 'activo');
+    @endphp
+
     <div class="container">
-        <!-- Card con la tabla de dibujantes -->
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <!-- Botón para crear dibujante -->
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCrear">
-                    Crear Dibujante
-                </button>
+                {{-- Toggle Activos/Inactivos --}}
+                <div>
+                    <a href="{{ route('dibujantes.index', ['status' => 'activo']) }}"
+                       class="btn btn-{{ $status === 'activo' ? 'primary' : 'outline-primary' }}">
+                        Activos
+                    </a>
+                    <a href="{{ route('dibujantes.index', ['status' => 'inactivo']) }}"
+                       class="btn btn-{{ $status === 'inactivo' ? 'primary' : 'outline-primary' }}">
+                        Inactivos
+                    </a>
+                </div>
+                {{-- Botón “Crear” solo en activos --}}
+                @if($status === 'activo')
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalCrear">
+                        Crear Dibujante
+                    </button>
+                @endif
             </div>
+
             <div class="card-body">
-                <!-- Tabla con ID para aplicar DataTables -->
                 <table id="Contenido" class="table table-bordered table-hover dataTable dtr-inline">
                     <thead>
                         <tr>
@@ -59,16 +70,31 @@
                                 <td>{{ \Carbon\Carbon::parse($dibujante->fecha_nacimiento)->format('d/m/Y') }}</td>
                                 <td class="text-center">
                                     <div class="acciones-container">
-                                        <!-- Botón para editar dibujante -->
-                                        <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalEditar"
-                                            onclick="editarDibujante({{ $dibujante->id }})">
-                                            <i class="fas fa-pen"></i>
-                                        </button>
-                                        <!-- Botón para eliminar dibujante -->
-                                        <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalEliminar"
-                                            onclick="configurarEliminar({{ $dibujante->id }})">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </button>
+                                        @if($status === 'activo')
+                                            {{-- Editar --}}
+                                            <button type="button" class="btn btn-sm btn-warning"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalEditar"
+                                                    onclick="editarDibujante({{ $dibujante->id }})">
+                                                <i class="fas fa-pen"></i>
+                                            </button>
+                                            {{-- Inactivar --}}
+                                            <button type="button" class="btn btn-sm btn-danger"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalEliminar"
+                                                    onclick="configurarEliminar({{ $dibujante->id }})">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        @else
+                                            {{-- Reactivar --}}
+                                            <form action="{{ route('dibujantes.reactivate', $dibujante->id) }}"
+                                                  method="POST" style="display:inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-success">
+                                                    <i class="fas fa-redo"></i>
+                                                </button>
+                                            </form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>

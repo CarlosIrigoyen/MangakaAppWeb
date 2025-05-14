@@ -78,10 +78,18 @@
 
             <!-- Precio -->
             <div class="mb-3">
-              <label for="precio_{{ $tomo->id }}" class="form-label">Precio</label>
-              <input type="number" step="0.01" name="precio" id="precio_{{ $tomo->id }}"
-                     class="form-control" value="{{ $tomo->precio }}" required>
-            </div>
+                <label for="precio_{{ $tomo->id }}" class="form-label">Precio</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  name="precio"
+                  id="precio_{{ $tomo->id }}"
+                  class="form-control"
+                  value="{{ $tomo->precio }}"
+                  required
+                >
+              </div>
 
             <!-- Stock (read-only) -->
             <div class="mb-3">
@@ -104,3 +112,17 @@
       </div>
     </div>
   </div>
+  <script>
+    document.querySelectorAll('input[type="number"][name="precio"]').forEach(function(input) {
+      input.addEventListener('input', function() {
+        const val = parseFloat(this.value);
+        if (isNaN(val) || val <= 0) {
+          this.setCustomValidity('El precio debe ser mayor que 0');
+        } else {
+          this.setCustomValidity('');
+        }
+      });
+    });
+  </script>
+
+

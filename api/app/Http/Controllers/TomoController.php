@@ -171,7 +171,7 @@ class TomoController extends Controller
             'editorial_id' => 'required|exists:editoriales,id',
             'formato' => 'required|in:Tankōbon,Aizōban,Kanzenban,Bunkoban,Wideban',
             'idioma' => 'required|in:Español,Inglés,Japonés',
-            'precio' => 'required|numeric',
+            'precio' => 'required|numeric|gt:0',
             'stock' => 'nullable|integer|min:0',
             'portada' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120',
             'fecha_publicacion' => $fechaMin ? "required|date|after_or_equal:$fechaMin" : 'required|date',
@@ -190,6 +190,14 @@ class TomoController extends Controller
         $upload = (new UploadApi())->upload($temp, [
             'folder' => "tomo_portadas/$slug",
             'public_id' => "portada_{$nextNumero}",
+            'transformation' => [
+                [
+                    'width' => 270,
+                    'height' => 320,
+                    'crop' => 'fill',
+                ]
+
+            ]
         ]);
 
         Tomo::create([
@@ -227,7 +235,7 @@ class TomoController extends Controller
             'editorial_id' => 'required|exists:editoriales,id',
             'formato' => 'required|in:Tankōbon,Aizōban,Kanzenban,Bunkoban,Wideban',
             'idioma' => 'required|in:Español,Inglés,Japonés',
-            'precio' => 'required|numeric',
+            'precio' => 'required|numeric|gt:0',
             'fecha_publicacion' => 'required|date|before:' . now()->toDateString(),
             'stock' => 'sometimes|integer|min:0',
         ];
@@ -247,6 +255,13 @@ class TomoController extends Controller
             $upload = (new UploadApi())->upload($temp, [
                 'folder' => "tomo_portadas/$slug",
                 'public_id' => "portada_{$tomo->numero_tomo}",
+                'transformation' => [
+                    [
+                        'width'  => 270,
+                        'height' => 320,
+                        'crop'   => 'fill'
+                    ]
+                ],
             ]);
             $validated['portada'] = $upload['secure_url'];
             $validated['public_id'] = $upload['public_id'];

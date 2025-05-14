@@ -10,40 +10,44 @@ class Manga extends Model
     use HasFactory;
 
     protected $table = 'mangas';
+
     protected $fillable = [
         'titulo',
         'autor_id',
         'dibujante_id',
         'en_publicacion',
+        'activo',
     ];
 
-    /**
-     * Un manga pertenece a un autor.
-     */
+    /** Scope para mangas activos */
+    public function scopeActivo($query)
+    {
+        return $query->where('activo', true);
+    }
+
+    /** Scope para mangas inactivos */
+    public function scopeInactivo($query)
+    {
+        return $query->where('activo', false);
+    }
+
     public function autor()
     {
         return $this->belongsTo(Autor::class, 'autor_id');
     }
 
-    /**
-     * Un manga pertenece a un dibujante.
-     */
     public function dibujante()
     {
         return $this->belongsTo(Dibujante::class, 'dibujante_id');
     }
 
-    /**
-     * Relación muchos a muchos con Genero.
-     * Indicamos la tabla pivote 'manga_genero' y sus claves foráneas.
-     */
     public function generos()
     {
         return $this->belongsToMany(
-            Genero::class,    // Modelo relacionado
-            'manga_genero',   // Tabla pivote
-            'manga_id',       // Clave foránea de este modelo en la pivote
-            'genero_id'       // Clave foránea del modelo Genero en la pivote
+            Genero::class,
+            'manga_genero',
+            'manga_id',
+            'genero_id'
         );
     }
 }

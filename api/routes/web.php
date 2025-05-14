@@ -78,4 +78,20 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
      Route::get('/mangas/{id}/check-tomos', [MangaController::class, 'checkTomos'])
      ->name('mangas.checkTomos');
 
+     //Para Autores: ruta para reactivar autor
+     Route::post('autores/{autor}/reactivate', [AutorController::class, 'reactivate'])
+     ->name('autores.reactivate');
+     // Reactivar dibujante
+     Route::post('dibujantes/{dibujante}/reactivate', [DibujanteController::class, 'reactivate'])
+     ->name('dibujantes.reactivate');
+     // Reactivar editorial
+     Route::post('editoriales/{editorial}/reactivate', [EditorialController::class, 'reactivate'])
+     ->name('editoriales.reactivate');
+     // Reactivar genero
+     Route::post('generos/{genero}/reactivate', [GeneroController::class, 'reactivate'])
+     ->name('generos.reactivate');
+     // Reactivar manga
+     Route::post('mangas/{manga}/reactivate', [MangaController::class, 'reactivate'])
+     ->name('mangas.reactivate');
+
 });

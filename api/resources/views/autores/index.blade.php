@@ -30,13 +30,34 @@
 @stop
 
 @section('content')
+    @php
+        // Recibido desde el controlador: 'activo' o 'inactivo'
+        $status = $status ?? request('status', 'activo');
+    @endphp
+
     <div class="container">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCrear">
-                    Crear Autor
-                </button>
+                {{-- Toggle Activos / Inactivos --}}
+                <div>
+                    <a href="{{ route('autores.index', ['status' => 'activo']) }}"
+                       class="btn btn-{{ $status === 'activo' ? 'primary' : 'outline-primary' }}">
+                        Activos
+                    </a>
+                    <a href="{{ route('autores.index', ['status' => 'inactivo']) }}"
+                       class="btn btn-{{ $status === 'inactivo' ? 'primary' : 'outline-primary' }}">
+                        Inactivos
+                    </a>
+                </div>
+
+                {{-- Botón "Crear Autor" solo en Activos --}}
+                @if($status === 'activo')
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalCrear">
+                        Crear Autor
+                    </button>
+                @endif
             </div>
+
             <div class="card-body">
                 <table id="Contenido" class="table table-bordered table-hover dataTable dtr-inline">
                     <thead>
@@ -57,18 +78,32 @@
                                 <td>{{ \Carbon\Carbon::parse($autor->fecha_nacimiento)->format('d/m/Y') }}</td>
                                 <td class="text-center">
                                     <div class="acciones-container">
-                                        <button type="button" class="btn btn-sm btn-warning"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#modalEditar"
-                                                onclick="editarAutor({{ $autor->id }})">
-                                            <i class="fas fa-pen"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-danger"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#modalEliminar"
-                                                onclick="configurarEliminar({{ $autor->id }})">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </button>
+                                        @if($status === 'activo')
+                                            {{-- Editar --}}
+                                            <button type="button" class="btn btn-sm btn-warning"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalEditar"
+                                                    onclick="editarAutor({{ $autor->id }})">
+                                                <i class="fas fa-pen"></i>
+                                            </button>
+                                            {{-- Inactivar (eliminar) --}}
+                                            <button type="button" class="btn btn-sm btn-danger"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalEliminar"
+                                                    onclick="configurarEliminar({{ $autor->id }})">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        @else
+                                            {{-- Reactivar --}}
+                                            <form action="{{ route('autores.reactivate', $autor->id) }}"
+                                                  method="POST"
+                                                  style="display:inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-success">
+                                                    <i class="fas fa-redo"></i>
+                                                </button>
+                                            </form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
@@ -77,11 +112,12 @@
                 </table>
             </div>
         </div>
-    </div>
 
-    @include('partials.modal_crear_autor')
-    @include('partials.modal_editar_autor')
-    @include('partials.modal_eliminar_autor')
+        {{-- Incluir los modales --}}
+        @include('partials.modal_crear_autor')
+        @include('partials.modal_editar_autor')
+        @include('partials.modal_eliminar_autor')
+    </div>
 @stop
 
 @section('js')
