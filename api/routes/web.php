@@ -49,13 +49,14 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::put('/mangas/{id}', [MangaController::class, 'update'])
          ->name('mangas.update');
 
+       // Actualización múltiple de stock
+       Route::put('tomos/updateMultipleStock',
+       [TomoController::class, 'updateMultipleStock'])
+       ->name('tomos.updateMultipleStock');
+
     // Tomos: CRUD completo + operaciones especiales
     Route::resource('tomos', TomoController::class);
 
-    // Actualización múltiple de stock
-    Route::put('tomos/updateMultipleStock',
-        [TomoController::class, 'updateMultipleStock'])
-        ->name('tomos.updateMultipleStock');
 
     // Reactivar tomo inactivo
     Route::put('tomos/{tomo}/reactivate',
