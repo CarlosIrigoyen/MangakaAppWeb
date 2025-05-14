@@ -71,4 +71,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // Para Géneros: ruta de chequeo de mangas asociados
     Route::get('/generos/{id}/check-mangas', [GeneroController::class, 'checkMangas'])
     ->name('generos.checkMangas');
+    // Para Editoriales: ruta de chequeo de tomos asociados
+    Route::get('/editoriales/{id}/check-tomos', [EditorialController::class, 'checkTomos'])
+     ->name('editoriales.checkTomos');
+     // Para Mangas: ruta de chequeo de tomos asociados
+     Route::get('/mangas/{id}/check-tomos', [MangaController::class, 'checkTomos'])
+     ->name('mangas.checkTomos');
+
 });

@@ -1,6 +1,6 @@
 $(document).ready(function() {
-    // Inicialización de DataTable para géneros
-    var table = $('#generosTable').DataTable({
+    // Inicialización de DataTable para géneros (usando id="Contenido")
+    var table = $('#Contenido').DataTable({
         responsive: true,
         autoWidth: false,
         language: {
@@ -13,7 +13,7 @@ $(document).ready(function() {
             emptyTable: "No se encontraron géneros"
         },
         initComplete: function () {
-            $('#generosTable').css('visibility', 'visible');
+            $('#Contenido').css('visibility', 'visible');
         }
     });
 
@@ -25,7 +25,7 @@ $(document).ready(function() {
         table.columns.adjust().responsive.recalc();
     });
 
-    // Función AJAX para editar género (ya existente)
+    // Función AJAX para editar género
     window.editarGenero = function(id) {
         $.ajax({
             url: '/generos/' + id + '/edit',

@@ -106,4 +106,14 @@ public function store(Request $request){
 
         return redirect()->route('mangas.index')->with('success', 'Manga eliminado exitosamente.');
     }
+    public function checkTomos($id){
+        // Cuenta tomos asociados
+        $tomosCount = \App\Models\Tomo::where('manga_id', $id)->count();
+        $manga      = Manga::findOrFail($id);
+
+        return response()->json([
+            'tomos_count' => $tomosCount,
+            'titulo'      => $manga->titulo,
+        ]);
+    }
 }

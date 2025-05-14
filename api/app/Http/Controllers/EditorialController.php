@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Editorial;
+use App\Models\Tomo;
 use Illuminate\Http\Request;
 
 class EditorialController extends Controller
@@ -64,5 +65,17 @@ class EditorialController extends Controller
         $editorial->delete();
 
         return redirect()->route('editoriales.index')->with('success', 'Editorial eliminada correctamente.');
+    }
+
+    public function checkTomos($id)
+    {
+        // Contamos los tomos de esa editorial
+        $tomosCount = Tomo::where('editorial_id', $id)->count();
+
+        $editorial = Editorial::findOrFail($id);
+        return response()->json([
+            'tomos_count' => $tomosCount,
+            'nombre'      => $editorial->nombre,
+        ]);
     }
 }
