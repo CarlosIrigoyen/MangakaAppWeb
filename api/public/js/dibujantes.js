@@ -1,29 +1,5 @@
 $(document).ready(function() {
-    // Inicializa DataTables
-    $('#Contenido').DataTable({
-        "responsive": true,
-        "autoWidth": false,
-        "language": {
-            "lengthMenu": "Mostrar _MENU_ registros por página",
-            "zeroRecords": "No se encontraron resultados",
-            "info": "Mostrando _START_ a _END_ de _TOTAL_ registros",
-            "infoEmpty": "Mostrando 0 a 0 de 0 registros",
-            "infoFiltered": "(filtrado de _MAX_ registros totales)",
-            "search": "Buscar:",
-            emptyTable: "No se encontraron dibujantes",
 
-        }
-    });
-    $('#Contenido').css('visibility', 'visible');
-    // Evento para ajustar la tabla al cambiar la orientación o redimensionar la ventana
-    $(window).on('orientationchange resize', function(){
-        table.columns.adjust().responsive.recalc();
-    });
-
-    // En caso de que un modal modifique el layout, ajustar la tabla al mostrarse
-    $('#modalEditar, #modalCrear, #modalEliminar').on('shown.bs.modal', function () {
-        table.columns.adjust().responsive.recalc();
-    });
     // Validación en tiempo real para el formulario de creación
     function validateCreateForm() {
         var nombre = $('#nombre').val();

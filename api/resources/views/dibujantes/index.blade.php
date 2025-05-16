@@ -143,6 +143,34 @@
     <!-- Script confirmación genérico -->
     <script src="{{ asset('js/confirmacion.js') }}"></script>
     <script>
+         $(document).ready(function() {
+            let table = $('#Contenido').DataTable({
+                responsive: true,
+                autoWidth: false,
+                language: {
+                    lengthMenu: "Mostrar _MENU_ registros por página",
+                    zeroRecords: "No se encontraron resultados",
+                    info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                    infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                    infoFiltered: "(filtrado de _MAX_ registros totales)",
+                    search: "Buscar:",
+                    emptyTable: "No se encontraron autores"
+                },
+                initComplete: function () {
+                    $('#Contenido').css('visibility', 'visible');
+                }
+            });
+
+            $(window).on('orientationchange resize', function() {
+                table.columns.adjust().responsive.recalc();
+            });
+
+            $('#modalEditar, #modalCrear, #modalEliminar').on('shown.bs.modal', function () {
+                table.columns.adjust().responsive.recalc();
+            });
+        });
+    </script>
+    <script>
         // Manejo genérico de confirmación para formularios con data-confirm
         let formToSubmit = null;
 

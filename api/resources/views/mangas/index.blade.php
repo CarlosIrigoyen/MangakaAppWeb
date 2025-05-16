@@ -2,6 +2,11 @@
 
 @section('title', 'Listado de Mangas')
 
+{{-- —–––––––––– Añadido meta viewport para móvil –––––––––– --}}
+@section('adminlte_css_pre')
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+@stop
+
 @section('content_header')
     <h1>Listado de Mangas</h1>
 @stop
@@ -154,8 +159,11 @@
         table = $('#Contenido').DataTable();
       }
 
+      // ——— Recálculo con retardo para móvil ———
       $(window).on('orientationchange resize', function() {
-        table.columns.adjust().responsive.recalc();
+        setTimeout(function(){
+          table.columns.adjust().responsive.recalc();
+        }, 200);
       });
 
       $('#modalEditar, #modalCrear, #modalEliminar').on('shown.bs.modal', function () {
