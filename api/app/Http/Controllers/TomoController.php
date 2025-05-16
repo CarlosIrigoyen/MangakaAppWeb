@@ -21,13 +21,11 @@ class TomoController extends Controller
      */
     public function index(Request $request)
     {
-        // 1) Base de la query según filtro
+        // 1) Base de la query según filtro, cualificando 'tomos.activo'
         if ($request->get('filter_type') === 'inactivos') {
-            // Sólo inactivos
             $base = Tomo::withoutGlobalScope('activo')
-                        ->where('activo', false);
+                        ->where('tomos.activo', false);
         } else {
-            // Activos (scope por defecto)
             $base = Tomo::query();
         }
 
@@ -39,15 +37,18 @@ class TomoController extends Controller
             $query = $this->applyFilters($request, $query);
         }
 
-        // 4) Orden y paginación (igual que antes)
+        // 4) Orden y paginación
         if (! $request->filled('filter_type') && ! $request->filled('search')) {
             $query->orderByDesc('created_at');
-        } elseif ($request->filled('filter_type') && $request->get('filter_type') !== 'inactivos') {
-            $query->join('mangas','mangas.id','=','tomos.manga_id')
-                  ->orderBy('mangas.titulo','asc')
-                  ->orderBy('tomos.numero_tomo','asc')
-                  ->select('tomos.*');
-        } else {
+        }
+        elseif ($request->filled('filter_type') && $request->get('filter_type') !== 'inactivos') {
+            // Seleccionamos tomos.* antes de hacer join para evitar ambigüedad
+            $query->select('tomos.*')
+                  ->join('mangas', 'mangas.id', '=', 'tomos.manga_id')
+                  ->orderBy('mangas.titulo', 'asc')
+                  ->orderBy('tomos.numero_tomo', 'asc');
+        }
+        else {
             $query->orderBy('numero_tomo','asc');
         }
 
@@ -62,7 +63,6 @@ class TomoController extends Controller
             'tomos','mangas','editoriales','nextTomos','lowStockTomos','hasLowStock'
         ));
     }
-
     /**
      * Reactiva un tomo previamente marcado como inactivo.
      * - Busca el tomo sin el scope 'activo'.

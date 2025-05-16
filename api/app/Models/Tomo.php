@@ -28,12 +28,12 @@ class Tomo extends Model
     ];
 
     /**
-     * Scope global: sólo trae tomos con activo = true
+     * Scope global: sólo trae tomos con tomos.activo = true
      */
     protected static function booted()
     {
         static::addGlobalScope('activo', function (Builder $builder) {
-            $builder->where('activo', true);
+            $builder->where('tomos.activo', true);
         });
     }
 
