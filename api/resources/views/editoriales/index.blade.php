@@ -28,7 +28,7 @@
     <div class="container">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                {{-- Toggle Act/Inact --}}
+                {{-- Toggle Act/Inaçt --}}
                 <div>
                     <a href="{{ route('editoriales.index', ['status' => 'activo']) }}"
                        class="btn btn-{{ $status==='activo' ? 'primary' : 'outline-primary' }}">
@@ -78,9 +78,12 @@
                                                 <i class="fas fa-trash-alt"></i>
                                             </button>
                                         @else
-                                            {{-- Reactivar --}}
+                                            {{-- Reactivar con confirmación --}}
                                             <form action="{{ route('editoriales.reactivate', $e->id) }}"
-                                                  method="POST" style="display:inline">
+                                                  method="POST"
+                                                  class="reactivar-form"
+                                                  data-confirm="¿Deseas reactivar esta editorial?"
+                                                  style="display:inline">
                                                 @csrf
                                                 <button type="submit" class="btn btn-sm btn-success">
                                                     <i class="fas fa-redo"></i>
@@ -99,6 +102,25 @@
         @include('partials.modal_crear_editorial')
         @include('partials.modal_editar_editorial')
         @include('partials.modal_eliminar_editorial')
+
+        {{-- Modal de confirmación reutilizable --}}
+        <div class="modal fade" id="modalConfirmacion" tabindex="-1" aria-labelledby="modalConfirmacionLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalConfirmacionLabel">Confirmar Acción</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p id="mensajeConfirmacion">¿Estás seguro de realizar esta acción?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-danger" id="btnConfirmarAccion">Confirmar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 @stop
 
@@ -110,4 +132,64 @@
     <script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.js"></script>
     <script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.js"></script>
     <script src="{{ asset('js/editorial.js') }}"></script>
+    <!-- Script confirmación genérico -->
+    <script src="{{ asset('js/confirmacion.js') }}"></script>
+    <script>
+    $(document).ready(function() {
+        let table;
+        // Inicializar DataTable solo una vez
+        if (!$.fn.DataTable.isDataTable('#Contenido')) {
+            table = $('#Contenido').DataTable({
+                responsive: true,
+                autoWidth: false,
+                language: {
+                    lengthMenu: "Mostrar _MENU_ registros por página",
+                    zeroRecords: "No se encontraron resultados",
+                    info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                    infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                    infoFiltered: "(filtrado de _MAX_ registros totales)",
+                    search: "Buscar:",
+                    emptyTable: "No se encontraron editoriales"
+                },
+                initComplete: function () {
+                    $('#Contenido').css('visibility', 'visible');
+                }
+            });
+        } else {
+            table = $('#Contenido').DataTable();
+        }
+
+        // Ajuste de columnas en responsive
+        $(window).on('orientationchange resize', function() {
+            table.columns.adjust().responsive.recalc();
+        });
+
+        // Ajuste al mostrar modales
+        $('#modalEditar, #modalCrear, #modalEliminar').on('shown.bs.modal', function () {
+            table.columns.adjust().responsive.recalc();
+        });
+
+        // Manejo genérico de confirmación
+        let formToSubmit = null;
+        $(document).on('submit', 'form[data-confirm]', function(e) {
+            e.preventDefault();
+            formToSubmit = this;
+            const mensaje = $(this).data('confirm');
+            $('#mensajeConfirmacion').text(mensaje);
+
+            const $btn = $('#btnConfirmarAccion');
+            if ($(this).hasClass('reactivar-form')) {
+                $btn.removeClass('btn-danger').addClass('btn-success').text('Reactivar');
+            } else {
+                $btn.removeClass('btn-success').addClass('btn-danger').text('Confirmar');
+            }
+
+            $('#modalConfirmacion').modal('show');
+        });
+
+        $('#btnConfirmarAccion').on('click', function() {
+            if (formToSubmit) formToSubmit.submit();
+        });
+    });
+</script>
 @stop

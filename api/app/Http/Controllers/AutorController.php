@@ -116,11 +116,14 @@ class AutorController extends Controller
     public function reactivate($id)
     {
         $autor = Autor::findOrFail($id);
+
+        // Marcar como activo
         $autor->activo = true;
         $autor->save();
 
+        // Redirigir al listado de activos
         return redirect()
-            ->route('autores.index', ['status' => 'inactivo'])
+            ->route('autores.index', ['status' => 'activo'])
             ->with('success', 'Autor reactivado correctamente.');
     }
 

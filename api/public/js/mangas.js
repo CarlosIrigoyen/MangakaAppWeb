@@ -22,7 +22,7 @@ function configurarEliminar(mangaId) {
     $('#formEliminar').attr('action', '/mangas/' + mangaId);
 
     // 2) reset del modal (texto y botón)
-    $('#modalEliminar .modal-body').text('¿Estás seguro de que deseas eliminar este manga?');
+    $('#modalEliminar .modal-body').text('¿Estás seguro de que deseas dar de baja este manga?');
     $('#btnConfirmEliminar')
       .prop('disabled', false)
       .text('Eliminar');
@@ -35,11 +35,11 @@ function configurarEliminar(mangaId) {
             if (data.tomos_count > 0) {
                 $('#modalEliminar .modal-body').html(
                     'El manga <strong>"' + data.titulo + '"</strong> tiene ' +
-                    data.tomos_count + ' tomo(s) asociados y no se puede eliminar.'
+                    data.tomos_count + ' tomo(s) asociados y no se puede dar de baja.'
                 );
                 $('#btnConfirmEliminar')
                   .prop('disabled', true)
-                  .text('No se puede eliminar');
+                  .text('No se puede dar de baja');
             }
             // si no tiene tomos, deja el modal listo para confirmar
         },

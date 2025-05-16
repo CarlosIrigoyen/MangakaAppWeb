@@ -86,9 +86,12 @@
                                                 <i class="fas fa-trash-alt"></i>
                                             </button>
                                         @else
-                                            {{-- Reactivar --}}
+                                            {{-- Reactivar con confirmación --}}
                                             <form action="{{ route('dibujantes.reactivate', $dibujante->id) }}"
-                                                  method="POST" style="display:inline">
+                                                  method="POST"
+                                                  class="reactivar-form"
+                                                  data-confirm="¿Deseas reactivar este dibujante?"
+                                                  style="display:inline">
                                                 @csrf
                                                 <button type="submit" class="btn btn-sm btn-success">
                                                     <i class="fas fa-redo"></i>
@@ -107,6 +110,25 @@
         @include('partials.modal_crear_dibujante')
         @include('partials.modal_editar_dibujante')
         @include('partials.modal_eliminar_dibujante')
+
+        {{-- Modal de confirmación reutilizable --}}
+        <div class="modal fade" id="modalConfirmacion" tabindex="-1" aria-labelledby="modalConfirmacionLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalConfirmacionLabel">Confirmar Acción</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p id="mensajeConfirmacion">¿Estás seguro de realizar esta acción?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-danger" id="btnConfirmarAccion">Confirmar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 @stop
 
@@ -118,4 +140,35 @@
     <script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.js"></script>
     <script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.js"></script>
     <script src="{{ asset('js/dibujantes.js') }}"></script>
+    <!-- Script confirmación genérico -->
+    <script src="{{ asset('js/confirmacion.js') }}"></script>
+    <script>
+        // Manejo genérico de confirmación para formularios con data-confirm
+        let formToSubmit = null;
+
+        $(document).on('submit', 'form[data-confirm]', function(e) {
+            e.preventDefault();
+            formToSubmit = this;
+
+            // Actualiza mensaje
+            const mensaje = $(this).data('confirm');
+            $('#mensajeConfirmacion').text(mensaje);
+
+            // Ajusta estilo y texto del botón de confirmación
+            const $btn = $('#btnConfirmarAccion');
+            if ($(this).hasClass('reactivar-form')) {
+                $btn.removeClass('btn-danger').addClass('btn-success').text('Reactivar');
+            } else {
+                $btn.removeClass('btn-success').addClass('btn-danger').text('Confirmar');
+            }
+
+            $('#modalConfirmacion').modal('show');
+        });
+
+        $('#btnConfirmarAccion').on('click', function() {
+            if (formToSubmit) {
+                formToSubmit.submit();
+            }
+        });
+    </script>
 @stop

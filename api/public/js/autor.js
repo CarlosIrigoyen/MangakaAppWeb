@@ -119,7 +119,7 @@ function configurarEliminar(id) {
 
     // 2) Reset del modal
     $('#eliminar-body-text')
-      .text('¿Estás seguro de que deseas eliminar este autor?');
+      .text('¿Estás seguro de que deseas dar de baja este autor?');
     $('#btnConfirmEliminar')
       .prop('disabled', false)
       .text('Eliminar');
@@ -133,11 +133,11 @@ function configurarEliminar(id) {
                 console.log(data.mangas_count);
                 $('#eliminar-body-text').html(
                     'El Autor <strong>' + data.nombre + '</strong> tiene ' +
-                    data.mangas_count + ' manga(s) asociados y no se puede eliminar.'
+                    data.mangas_count + ' manga(s) asociados y no se puede dar de baja.'
                 );
                 $('#btnConfirmEliminar')
                   .prop('disabled', true)
-                  .text('No se puede eliminar');
+                  .text('No se puede dar de baja');
             }
         },
         error: function() {

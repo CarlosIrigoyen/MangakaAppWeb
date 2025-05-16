@@ -116,7 +116,7 @@ class EditorialController extends Controller
         $editorial->save();
 
         return redirect()
-            ->route('editoriales.index', ['status' => 'inactivo'])
+            ->route('editoriales.index', ['status' => 'activo']) // <-- cambiar a 'activo'
             ->with('success', 'Editorial reactivada correctamente.');
     }
 

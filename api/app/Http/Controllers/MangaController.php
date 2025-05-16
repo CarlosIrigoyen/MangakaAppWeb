@@ -128,7 +128,7 @@ class MangaController extends Controller
         $manga->save();
 
         return redirect()
-            ->route('mangas.index', ['status' => 'inactivo'])
+            ->route('mangas.index', ['status' => 'activo'])
             ->with('success', 'Manga reactivado correctamente.');
     }
 

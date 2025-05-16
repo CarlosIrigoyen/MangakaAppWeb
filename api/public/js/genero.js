@@ -41,7 +41,7 @@ $(document).ready(function() {
     window.configurarEliminar = function(id) {
         // Texto y botón por defecto
         $('#eliminar-body-text')
-            .text('¿Estás seguro de que deseas eliminar este género?');
+            .text('¿Estás seguro de que deseas dar de baja este género?');
         $('#btnConfirmEliminar')
             .prop('disabled', false)
             .text('Eliminar');
@@ -56,11 +56,11 @@ $(document).ready(function() {
             success: function(data) {
                 if (data.mangas_count > 0) {
                     $('#eliminar-body-text').html(
-                        'El género <strong>' + data.nombre + '</strong> ya tiene mangas asociados y no se puede eliminar.'
+                        'El género <strong>' + data.nombre + '</strong> ya tiene mangas asociados y no se puede dar de baja.'
                     );
                     $('#btnConfirmEliminar')
                         .prop('disabled', true)
-                        .text('No se puede eliminar');
+                        .text('No se puede dar de baja ');
                 }
             },
             error: function() {

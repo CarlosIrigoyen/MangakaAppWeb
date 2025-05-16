@@ -117,13 +117,17 @@ class DibujanteController extends Controller
     public function reactivate($id)
     {
         $dibujante = Dibujante::findOrFail($id);
+
+        // Marcar como activo
         $dibujante->activo = true;
         $dibujante->save();
 
+        // Redirigir al listado de dibujantes activos
         return redirect()
-            ->route('dibujantes.index', ['status' => 'inactivo'])
+            ->route('dibujantes.index', ['status' => 'activo'])
             ->with('success', 'Dibujante reactivado correctamente.');
     }
+
 
     /**
      * Devuelve JSON con la cuenta de mangas asociados a un dibujante.

@@ -103,7 +103,7 @@ class GeneroController extends Controller
         $genero->save();
 
         return redirect()
-            ->route('generos.index', ['status' => 'inactivo'])
+            ->route('generos.index', ['status' => 'activo'])
             ->with('success', 'Género reactivado correctamente.');
     }
 

@@ -3,11 +3,11 @@
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="modalEliminarLabel">Eliminar Editorial</h5>
+          <h5 class="modal-title" id="modalEliminarLabel">Dar De Baja Editorial</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
         </div>
         <div class="modal-body">
-          <p id="eliminar-body-text">¿Estás seguro de que deseas eliminar esta editorial?</p>
+          <p id="eliminar-body-text">¿Estás seguro de que deseas dar de baja esta editorial?</p>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -15,7 +15,7 @@
             @csrf
             @method('DELETE')
             <button id="btnConfirmEliminar" type="submit" class="btn btn-danger">
-              Eliminar
+              Dar De Baja
             </button>
           </form>
         </div>

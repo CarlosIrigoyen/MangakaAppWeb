@@ -43,7 +43,7 @@ function configurarEliminar(id) {
 
     // 2) Reset del modal
     $('#eliminar-body-text')
-      .text('¿Estás seguro de que deseas eliminar esta editorial?');
+      .text('¿Estás seguro de que deseas dar de baja esta editorial?');
     $('#btnConfirmEliminar')
       .prop('disabled', false)
       .text('Eliminar');
@@ -56,11 +56,11 @@ function configurarEliminar(id) {
             if (data.tomos_count > 0) {
                 $('#eliminar-body-text').html(
                     'La editorial <strong>' + data.nombre + '</strong> tiene ' +
-                    data.tomos_count + ' tomo(s) asociados y no se puede eliminar.'
+                    data.tomos_count + ' tomo(s) asociados y no se puede dar de baja .'
                 );
                 $('#btnConfirmEliminar')
                   .prop('disabled', true)
-                  .text('No se puede eliminar');
+                  .text('No se puede dar de baja');
             }
         },
         error: function() {

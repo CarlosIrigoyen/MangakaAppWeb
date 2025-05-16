@@ -9,12 +9,12 @@ use App\Http\Controllers\GeneroController;
 use App\Http\Controllers\TomoController;
 use Illuminate\Auth\Events\Login;
 
+
 /*
 |--------------------------------------------------------------------------
-| Rutas públicas (guest)
+|
 |--------------------------------------------------------------------------
-| Sólo accesible si NO estás autenticado; las rutas de login/registro
-| las maneja Jetstream/Fortify automáticamente.
+| Aquí va todo lo relativo a la autenticación y el login.
 */
 //redirecciona al login
 Route::middleware('guest')->group(function () {
@@ -27,8 +27,7 @@ Route::middleware('guest')->group(function () {
 |--------------------------------------------------------------------------
 | Rutas protegidas por autenticación
 |--------------------------------------------------------------------------
-| Aquí va todo lo relativo al CRUD y al dashboard. Si no estás logeado,
-| Laravel te redirige al login.
+| Aquí va todo lo relativo al CRUD y al dashboard
 */
 Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified'])
      ->group(function () {

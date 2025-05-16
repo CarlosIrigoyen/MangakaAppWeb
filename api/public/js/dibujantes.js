@@ -138,7 +138,7 @@ function editarDibujante(id) {
 
 // Función para configurar la eliminación del dibujante
 function configurarEliminar(id) {
-    $('#eliminar-body-text').text('¿Estás seguro de que deseas eliminar este dibujante?');
+    $('#eliminar-body-text').text('¿Estás seguro de que deseas dar de baja este dibujante?');
     $('#btnConfirmEliminar').prop('disabled', false).text('Eliminar');
     $('#formEliminar').attr('action', '/dibujantes/' + id);
 
@@ -149,11 +149,11 @@ function configurarEliminar(id) {
             if (data.mangas_count > 0) {
                 $('#eliminar-body-text').html(
                     'El dibujante <strong>' + data.nombre + '</strong> tiene ' +
-                    data.mangas_count + ' manga(s) asociados y no se puede eliminar.'
+                    data.mangas_count + ' manga(s) asociados y no se puede dar de baja.'
                 );
                 $('#btnConfirmEliminar')
                     .prop('disabled', true)
-                    .text('No se puede eliminar');
+                    .text('No se puede dar de baja');
             }
         },
         error: function() {
