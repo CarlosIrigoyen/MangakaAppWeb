@@ -1,38 +1,53 @@
-
-        $(document).ready(function() {
-            $('#Contenido').DataTable({
-                responsive: true,
-                order: [[0, 'desc']],
-                "language": {
-                    "lengthMenu": "Mostrar _MENU_ registros por página",
-                    "zeroRecords": "No se encontraron resultados",
-                    "info": "Mostrando _START_ a _END_ de _TOTAL_ registros",
-                    "infoEmpty": "Mostrando 0 a 0 de 0 registros",
-                    "infoFiltered": "(filtrado de _MAX_ registros totales)",
-                    "search": "Buscar:"
-                }
-            });
+$(document).ready(function() {
+    $('#Contenido').DataTable({
+        responsive: true,
+        order: [[0, 'desc']],
+        language: {
+            lengthMenu: "Mostrar _MENU_ registros por página",
+            zeroRecords: "No se encontraron resultados",
+            info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+            infoEmpty: "Mostrando 0 a 0 de 0 registros",
+            infoFiltered: "(filtrado de _MAX_ registros totales)",
+            search: "Buscar:"
+        },
+        initComplete: function() {
             $('#Contenido').css('visibility', 'visible');
-        });
-
-
-        function editarManga(manga) {
-            console.log(manga); // Verifica que manga.titulo existe y contiene el valor correcto
-            $('#manga_id').val(manga.id);
-            $('#titulo_editar').val(manga.titulo);
-            $('#autor_editar').val(manga.autor_id);
-            $('#dibujante_editar').val(manga.dibujante_id);
-
-            // Limpiar previamente las casillas de géneros y marcarlas según el manga
-            $('.genero-checkbox').prop('checked', false);
-            manga.generos.forEach(function(genero) {
-                $('#genero_editar' + genero.id).prop('checked', true);
-            });
-
-            // Configurar el checkbox de edición según el estado de publicación
-            $('#en_publicacion_editar').prop('checked', manga.en_publicacion);
-
-            // Configurar la acción del formulario de edición
-            $('#formEditar').attr('action', '/mangas/' + manga.id);
         }
+    });
+});
 
+// Función para preparar el modal de eliminación y comprobar dependencias
+function configurarEliminar(mangaId) {
+    // 1) acción del form
+    $('#formEliminar').attr('action', '/mangas/' + mangaId);
+
+    // 2) reset del modal (texto y botón)
+    $('#modalEliminar .modal-body').text('¿Estás seguro de que deseas dar de baja este manga?');
+    $('#btnConfirmEliminar')
+      .prop('disabled', false)
+      .text('Eliminar');
+
+    // 3) petición AJAX para contar tomos asociados
+    $.ajax({
+        url: '/mangas/' + mangaId + '/check-tomos',
+        method: 'GET',
+        success: function(data) {
+            if (data.tomos_count > 0) {
+                $('#modalEliminar .modal-body').html(
+                    'El manga <strong>"' + data.titulo + '"</strong> tiene ' +
+                    data.tomos_count + ' tomo(s) asociados y no se puede dar de baja.'
+                );
+                $('#btnConfirmEliminar')
+                  .prop('disabled', true)
+                  .text('No se puede dar de baja');
+            }
+            // si no tiene tomos, deja el modal listo para confirmar
+        },
+        error: function() {
+            $('#modalEliminar .modal-body').text('Error al comprobar dependencias.');
+            $('#btnConfirmEliminar')
+              .prop('disabled', true)
+              .text('No se puede eliminar');
+        }
+    });
+}

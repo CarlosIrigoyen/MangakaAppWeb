@@ -39,7 +39,7 @@
                                     <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalEditar" onclick="editarManga(@json($manga))">
                                         <i class="fas fa-pen"></i>
                                     </button>
-                                    <!-- Botón para eliminar manga -->
+
                                     <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalEliminar" onclick="configurarEliminar({{ $manga->id }})">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>

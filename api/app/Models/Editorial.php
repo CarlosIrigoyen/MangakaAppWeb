@@ -8,16 +8,41 @@ use Illuminate\Database\Eloquent\Model;
 class Editorial extends Model
 {
     use HasFactory;
-    protected $table = 'editoriales'; // Asegurar el nombre correcto
 
-    protected $fillable = ['nombre', 'pais'];
+    protected $table = 'editoriales';
 
+    protected $fillable = [
+        'nombre',
+        'pais',
+        'activo',
+    ];
 
-    public function editoriales(){
-        return $this->belongsToMany(Editorial::class, 'tomo_editorial', 'tomo_id', 'editorial_id');
+    /**
+     * Scope para editoriales activas
+     */
+    public function scopeActivo($query)
+    {
+        return $query->where('activo', true);
     }
 
+    /**
+     * Scope para editoriales inactivas
+     */
+    public function scopeInactivo($query)
+    {
+        return $query->where('activo', false);
+    }
 
-
+    /**
+     * Relación tomos ⇄ editoriales (muchos a muchos).
+     */
+    public function tomos()
+    {
+        return $this->belongsToMany(
+            Tomo::class,
+            'tomo_editorial',
+            'editorial_id',
+            'tomo_id'
+        );
+    }
 }
-

@@ -11,8 +11,29 @@ class Autor extends Model
 
     protected $table = 'autores';
 
-    // Agregamos los nuevos campos para asignación masiva
-    protected $fillable = ['nombre', 'apellido', 'fecha_nacimiento', 'activo'];
+
+    protected $fillable = [
+        'nombre',
+        'apellido',
+        'fecha_nacimiento',
+        'activo',
+    ];
+
+    /**
+     * Scope para autores activos
+     */
+    public function scopeActivo($query)
+    {
+        return $query->where('activo', true);
+    }
+
+    /**
+     * Scope para autores inactivos
+     */
+    public function scopeInactivo($query)
+    {
+        return $query->where('activo', false);
+    }
 
     /**
      * Relación uno a muchos con el modelo Manga.
