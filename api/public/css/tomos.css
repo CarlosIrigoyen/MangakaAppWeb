@@ -60,75 +60,84 @@
 }
 
 /* ============================================================== */
-/* ========  ESTILOS PARA LAS TARJETAS DE TOMO (CARD-TOMO) ======== */
+/* ========  GRID DE TOMOS: 3 POR FILA (ID: tomoList) ============ */
 /* ============================================================== */
-
-/* 1. Ajuste de tamaño y separación */
-.card-tomo {
-    position: relative;        /* permite posicionar el footer sobre la imagen */
-    width: 270px;              /* igual al ancho de la imagen */
-    height: 320px;             /* igual al alto de la imagen */
-    margin: 15px;              /* separación uniforme alrededor */
-    border-radius: 10px;
-    overflow: hidden;          /* recorta todo lo que desborda */
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    background-color: #fff;
+#tomoList {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 20px;
 }
 
-/* 2. Imagen que cubre toda la tarjeta sin deformarse */
-.card-tomo img {
+/* ============================================================== */
+/* ========  TARJETA HORIZONTAL POR TOMO  ======================= */
+/* ============================================================== */
+.card-tomo-horizontal {
+    display: flex;
+    background-color: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    min-height: 160px;
+}
+
+/* Imagen con ancho fijo */
+.card-tomo-horizontal .card-img {
+    flex: 0 0 120px;
+    overflow: hidden;
+}
+.card-tomo-horizontal .card-img img {
     width: 100%;
     height: 100%;
-    object-fit: cover;         /* recorta o expande según sea necesario */
+    object-fit: cover;
     display: block;
 }
 
-/* 3. Footer con botones, sobre la base de la imagen */
-.card-tomo .card-footer {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: rgba(255, 255, 255, 0.9);
+/* Cuerpo: información + botones */
+.card-tomo-horizontal .card-body {
+    flex: 1;
+    padding: 12px 16px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 0;
-    border-top: 1px solid #e9ecef;
 }
 
-/* 3a. Botones dentro del footer */
-.card-tomo .card-footer .btn {
-    width: calc(100% - 20px);  /* deja un pequeño margen interno */
-    padding: 5px 8px;
+/* Título e info */
+.card-tomo-horizontal .card-title {
+    margin: 0 0 8px;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+.card-tomo-horizontal .card-text {
+    flex: 1;
+    margin-bottom: 12px;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: #333;
+    overflow: hidden;
 }
 
-/* ============================================================== */
-/* ========  GRID FLEX PARA LISTADO DE TOMOS (tomoList) ======== */
-/* ============================================================== */
-#tomoList {
+/* Botones al pie */
+.card-tomo-horizontal .btn-group {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 30px;  /* espacio tanto horizontal como vertical entre cards */
+    gap: 8px;
+}
+.card-tomo-horizontal .btn-group .btn {
+    flex: 1;
+    font-size: 0.85rem;
+    padding: 6px 0;
 }
 
 /* ============================================================== */
-/* ========  MEDIA QUERIES / RESPONSIVE  ======== */
+/* ========  MEDIA QUERIES (2 cols en tablet, 1 en móvil) ======== */
 /* ============================================================== */
-@media (max-width: 1024px) {
-    .card-tomo {
-        width: 220px;
-        height: 260px;
+@media (max-width: 992px) {
+    #tomoList {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (max-width: 576px) {
+    #tomoList {
+        grid-template-columns: 1fr;
     }
 }
 
-@media (max-width: 768px) {
-    .card-tomo {
-        width: 200px;
-        height: 240px;
-    }
-}
