@@ -1,94 +1,134 @@
+/* Contenedor principal */
+.container {
+    margin-top: 20px;
+}
 
-        .container {
-            margin-top: 20px;
-        }
-        .card-filtros {
-            margin-bottom: 20px;
-        }
-        .form-check {
-            margin-bottom: 10px;
-        }
-        /* Tarjeta del tomo individual: ancho 240px, formato "libro" */
-        .card-tomo {
-            width: 240px;
-            margin: 15px auto;
-            border-radius: 10px;
-            overflow: visible;
-            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        .card-tomo img {
-            width: 100%;
-            height: auto;
-            object-fit: cover;
-        }
-        /* Footer de cada tarjeta de tomo: botones en columna con separación */
-        .card-tomo .card-footer {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            background-color: #fff;
-            border-top: 1px solid #e9ecef;
-            padding: 10px;
-            overflow: visible;
-        }
-        .card-tomo .card-footer .btn {
-            padding: 5px 8px;
-        }
-        /* Filtros: radio buttons y select dinámico */
-        .filtros-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            align-items: center;
-        }
-        .filter-select {
-            display: none;
-            max-width: 250px;
-        }
-        #searchBar {
-            margin-bottom: 15px;
-            display: block;
-        }
-        .separator {
-            border-top: 1px solid #ccc;
-            margin: 15px 0;
-        }
-        /* Paginación personalizada */
-        .pagination-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        .btn-crear-tomo {
-            width: auto;
-            padding: 8px 20px;
-            font-size: 16px;
-            text-align: center;
-            border-radius: 5px;
-        }
-        .btn-crear-tomo:hover {
-            background-color: #0056b3;
-        }
-        /* Tarjeta del tomo individual: max ancho 240px para mantener el formato "libro" */
-        .card-tomo {
-            max-width: 240px;
-            width: 100%;
-            margin: 15px auto;
-            border-radius: 10px;
-            overflow: visible;
-            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        @media (max-width: 1024px) {
-            .card-tomo {
-                max-width: 200px;
-                margin: 15px auto;
-            }
-        }
-        .card-tomo .card-footer .btn {
-            width: 200px;
-            margin: 0 auto; /* Para centrar el botón dentro del contenedor */
-        }
+/* Tarjeta de filtros */
+.card-filtros {
+    margin-bottom: 20px;
+}
 
+/* Checkbox / radio dentro del filtro */
+.form-check {
+    margin-bottom: 10px;
+}
+
+/* Filtros: layout y select dinámico */
+.filtros-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+}
+
+.filter-select {
+    display: none;
+    max-width: 250px;
+}
+
+#searchBar {
+    margin-bottom: 15px;
+    display: block;
+}
+
+/* Separador genérico */
+.separator {
+    border-top: 1px solid #ccc;
+    margin: 15px 0;
+}
+
+/* Paginación personalizada */
+.pagination-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* Botón crear tomo */
+.btn-crear-tomo {
+    width: auto;
+    padding: 8px 20px;
+    font-size: 16px;
+    text-align: center;
+    border-radius: 5px;
+}
+
+.btn-crear-tomo:hover {
+    background-color: #0056b3;
+}
+
+/* ============================================================== */
+/* ========  ESTILOS PARA LAS TARJETAS DE TOMO (CARD-TOMO) ======== */
+/* ============================================================== */
+
+/* 1. Ajuste de tamaño y separación */
+.card-tomo {
+    position: relative;        /* permite posicionar el footer sobre la imagen */
+    width: 270px;              /* igual al ancho de la imagen */
+    height: 320px;             /* igual al alto de la imagen */
+    margin: 15px;              /* separación uniforme alrededor */
+    border-radius: 10px;
+    overflow: hidden;          /* recorta todo lo que desborda */
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+}
+
+/* 2. Imagen que cubre toda la tarjeta sin deformarse */
+.card-tomo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;         /* recorta o expande según sea necesario */
+    display: block;
+}
+
+/* 3. Footer con botones, sobre la base de la imagen */
+.card-tomo .card-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-top: 1px solid #e9ecef;
+}
+
+/* 3a. Botones dentro del footer */
+.card-tomo .card-footer .btn {
+    width: calc(100% - 20px);  /* deja un pequeño margen interno */
+    padding: 5px 8px;
+}
+
+/* ============================================================== */
+/* ========  GRID FLEX PARA LISTADO DE TOMOS (tomoList) ======== */
+/* ============================================================== */
+#tomoList {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 30px;  /* espacio tanto horizontal como vertical entre cards */
+}
+
+/* ============================================================== */
+/* ========  MEDIA QUERIES / RESPONSIVE  ======== */
+/* ============================================================== */
+@media (max-width: 1024px) {
+    .card-tomo {
+        width: 220px;
+        height: 260px;
+    }
+}
+
+@media (max-width: 768px) {
+    .card-tomo {
+        width: 200px;
+        height: 240px;
+    }
+}
