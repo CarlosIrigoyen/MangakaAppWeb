@@ -2,7 +2,7 @@
 
 @section('title', 'Listado de Mangas')
 
-{{-- —–––––––––– Añadido meta viewport para móvil –––––––––– --}}
+{{-- Meta para viewport móvil --}}
 @section('adminlte_css_pre')
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 @stop
@@ -18,6 +18,7 @@
     </style>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.bootstrap5.css">
+    {{-- Podemos conservar el CSS de responsive aunque no lo usemos --}}
     <link rel="stylesheet" href="https://cdn.datatables.net/responsive/3.0.3/css/responsive.bootstrap5.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 @stop
@@ -46,59 +47,62 @@
         </div>
 
         <div class="card-body">
-          <table id="Contenido"
-                 class="table table-bordered table-hover dataTable nowrap"
-                 style="width:100%">
-            <thead>
-              <tr>
-                <th>#</th><th>Nombre</th><th>Autor</th><th>Dibujante</th>
-                <th>Géneros</th><th>En Publicación</th><th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              @foreach($mangas as $m)
+          {{-- Wrapper para scroll horizontal --}}
+          <div class="table-responsive">
+            <table id="Contenido"
+                   class="table table-bordered table-hover nowrap"
+                   style="width:100%">
+              <thead>
                 <tr>
-                  <td>{{ $m->id }}</td>
-                  <td>{{ $m->titulo }}</td>
-                  <td>{{ $m->autor->nombre }} {{ $m->autor->apellido }}</td>
-                  <td>{{ $m->dibujante->nombre }} {{ $m->dibujante->apellido }}</td>
-                  <td>
-                    @foreach($m->generos as $g)
-                      {{ $g->nombre }}@if(!$loop->last), @endif
-                    @endforeach
-                  </td>
-                  <td class="text-center">{{ $m->en_publicacion==='si'?'SI':'NO' }}</td>
-                  <td class="text-center">
-                    <div class="acciones-container">
-                      @if($status==='activo')
-                        <button class="btn btn-sm btn-warning"
-                                data-bs-toggle="modal" data-bs-target="#modalEditar"
-                                onclick="editarManga({{ json_encode($m) }})">
-                          <i class="fas fa-pen"></i>
-                        </button>
-                        <button class="btn btn-sm btn-danger"
-                                data-bs-toggle="modal" data-bs-target="#modalEliminar"
-                                onclick="configurarEliminar({{ $m->id }})">
-                          <i class="fas fa-trash-alt"></i>
-                        </button>
-                      @else
-                        <form action="{{ route('mangas.reactivate',$m->id) }}"
-                              method="POST"
-                              class="reactivar-form"
-                              data-confirm="¿Deseas reactivar este manga?"
-                              style="display:inline">
-                          @csrf
-                          <button class="btn btn-sm btn-success">
-                            <i class="fas fa-redo"></i>
-                          </button>
-                        </form>
-                      @endif
-                    </div>
-                  </td>
+                  <th>#</th><th>Nombre</th><th>Autor</th><th>Dibujante</th>
+                  <th>Géneros</th><th>En Publicación</th><th>Acciones</th>
                 </tr>
-              @endforeach
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                @foreach($mangas as $m)
+                  <tr>
+                    <td>{{ $m->id }}</td>
+                    <td>{{ $m->titulo }}</td>
+                    <td>{{ $m->autor->nombre }} {{ $m->autor->apellido }}</td>
+                    <td>{{ $m->dibujante->nombre }} {{ $m->dibujante->apellido }}</td>
+                    <td>
+                      @foreach($m->generos as $g)
+                        {{ $g->nombre }}@if(!$loop->last), @endif
+                      @endforeach
+                    </td>
+                    <td class="text-center">{{ $m->en_publicacion==='si'?'SI':'NO' }}</td>
+                    <td class="text-center">
+                      <div class="acciones-container">
+                        @if($status==='activo')
+                          <button class="btn btn-sm btn-warning"
+                                  data-bs-toggle="modal" data-bs-target="#modalEditar"
+                                  onclick="editarManga({{ json_encode($m) }})">
+                            <i class="fas fa-pen"></i>
+                          </button>
+                          <button class="btn btn-sm btn-danger"
+                                  data-bs-toggle="modal" data-bs-target="#modalEliminar"
+                                  onclick="configurarEliminar({{ $m->id }})">
+                            <i class="fas fa-trash-alt"></i>
+                          </button>
+                        @else
+                          <form action="{{ route('mangas.reactivate',$m->id) }}"
+                                method="POST"
+                                class="reactivar-form"
+                                data-confirm="¿Deseas reactivar este manga?"
+                                style="display:inline">
+                            @csrf
+                            <button class="btn btn-sm btn-success">
+                              <i class="fas fa-redo"></i>
+                            </button>
+                          </form>
+                        @endif
+                      </div>
+                    </td>
+                  </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -131,16 +135,19 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.datatables.net/2.1.8/js/dataTables.js"></script>
   <script src="https://cdn.datatables.net/2.1.8/js/dataTables.bootstrap5.js"></script>
+  {{-- Mantenemos los scripts de responsive aunque lo tengamos en false --}}
   <script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.js"></script>
   <script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.js"></script>
   <script src="{{ asset('js/mangas.js') }}"></script>
   <script src="{{ asset('js/confirmacion.js') }}"></script>
+
   <script>
     $(document).ready(function() {
       let table;
       if (!$.fn.DataTable.isDataTable('#Contenido')) {
         table = $('#Contenido').DataTable({
-          responsive: true,
+          responsive: false,   // desactivamos el módulo responsive
+          scrollX: true,       // activamos scroll horizontal
           autoWidth: false,
           language: {
             lengthMenu: "Mostrar _MENU_ registros por página",
@@ -159,15 +166,15 @@
         table = $('#Contenido').DataTable();
       }
 
-      // ——— Recálculo con retardo para móvil ———
-      $(window).on('orientationchange resize', function() {
+      // Opcional: reajuste tras resize/orientationchange
+      $(window).on('resize orientationchange', function() {
         setTimeout(function(){
-          table.columns.adjust().responsive.recalc();
-        }, 200);
+          table.columns.adjust();
+        }, 100);
       });
 
       $('#modalEditar, #modalCrear, #modalEliminar').on('shown.bs.modal', function () {
-        table.columns.adjust().responsive.recalc();
+        table.columns.adjust();
       });
 
       let formToSubmit = null;
