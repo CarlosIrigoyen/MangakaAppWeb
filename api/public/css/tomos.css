@@ -1,134 +1,119 @@
+/* ============================================
+   ESTILOS UNIFICADOS PARA TARJETAS DE TOMOS
+   Todas las tarjetas tendrán la misma altura
+   ============================================ */
+
 /* Contenedor principal */
 .container {
     margin-top: 20px;
-}
+  }
 
-/* Tarjeta de filtros */
+/* Filtros */
 .card-filtros {
     margin-bottom: 20px;
 }
-
-/* Checkbox / radio dentro del filtro */
 .form-check {
     margin-bottom: 10px;
 }
-
-/* Filtros: layout y select dinámico */
 .filtros-container {
     display: flex;
     flex-wrap: wrap;
     gap: 15px;
     align-items: center;
 }
-
 .filter-select {
     display: none;
     max-width: 250px;
 }
-
 #searchBar {
     margin-bottom: 15px;
     display: block;
-}
+  }
 
-/* Separador genérico */
+/* Separador y paginación */
 .separator {
     border-top: 1px solid #ccc;
     margin: 15px 0;
 }
-
-/* Paginación personalizada */
 .pagination-container {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
     margin-top: 20px;
-}
+  }
 
-/* Botón crear tomo */
-.btn-crear-tomo {
+  /* Botón crear tomo */
+  .btn-crear-tomo {
     width: auto;
     padding: 8px 20px;
     font-size: 16px;
     text-align: center;
     border-radius: 5px;
 }
-
 .btn-crear-tomo:hover {
     background-color: #0056b3;
+  }
+
+/* ============================================
+   TARJETAS UNIFORMES EN ALTURA
+   ============================================ */
+
+/* 1) Hacer que cada col-md-4 sea flex para igualar alturas */
+#tomoList .col-md-4 {
+    display: flex;
 }
 
-/* ============================================================== */
-/* ========  ESTILOS PARA LAS TARJETAS DE TOMO (CARD-TOMO) ======== */
-/* ============================================================== */
-
-/* 1. Ajuste de tamaño y separación */
+/* 2) Tarjeta con ancho fijo, altura 100% de su contenedor flex */
 .card-tomo {
-    position: relative;        /* permite posicionar el footer sobre la imagen */
-    width: 270px;              /* igual al ancho de la imagen */
-    height: 320px;             /* igual al alto de la imagen */
-    margin: 15px;              /* separación uniforme alrededor */
-    border-radius: 10px;
-    overflow: hidden;          /* recorta todo lo que desborda */
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
+    width: 320px;           /* ancho fijo, ajústalo si necesitas */
+    max-width: 100%;
+    margin: 15px auto;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+    height: 100%;           /* ocupa toda la altura del .col-md-4 flex */
+}
+
+/* 3) Altura fija para todas las portadas */
+.card-tomo img,
+.card-tomo .card-img-top {
+    width: 100%;
+    height: 200px;          /* ajustable a la altura que prefieras */
+    object-fit: cover;      /* recorta/encuadra bien la imagen */
+    flex-shrink: 0;
+    background-color: #f5f5f5;
+}
+
+/* 4) Footer ocupa el espacio restante y empuja botones al final */
+.card-tomo .card-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-top: auto;
+    padding: 12px;
+    border-top: 1px solid #e9ecef;
     background-color: #fff;
 }
 
-/* 2. Imagen que cubre toda la tarjeta sin deformarse */
-.card-tomo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;         /* recorta o expande según sea necesario */
-    display: block;
-}
-
-/* 3. Footer con botones, sobre la base de la imagen */
-.card-tomo .card-footer {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: rgba(255, 255, 255, 0.9);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 0;
-    border-top: 1px solid #e9ecef;
-}
-
-/* 3a. Botones dentro del footer */
+/* Botones dentro de la tarjeta */
 .card-tomo .card-footer .btn {
-    width: calc(100% - 20px);  /* deja un pequeño margen interno */
-    padding: 5px 8px;
+    width: 100%;
+    padding: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.95rem;
+    line-height: 1.2;
 }
 
-/* ============================================================== */
-/* ========  GRID FLEX PARA LISTADO DE TOMOS (tomoList) ======== */
-/* ============================================================== */
-#tomoList {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 30px;  /* espacio tanto horizontal como vertical entre cards */
-}
-
-/* ============================================================== */
-/* ========  MEDIA QUERIES / RESPONSIVE  ======== */
-/* ============================================================== */
+/* Responsivo: reducir ligeramente el ancho en pantallas medianas */
 @media (max-width: 1024px) {
     .card-tomo {
-        width: 220px;
-        height: 260px;
-    }
-}
-
-@media (max-width: 768px) {
-    .card-tomo {
-        width: 200px;
-        height: 240px;
+        width: 280px;
     }
 }

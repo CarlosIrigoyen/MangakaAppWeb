@@ -1,74 +1,179 @@
 @extends('adminlte::page')
 
-@section('title', 'Listado de Editoriales')
+@section('title', 'Listado de Géneros')
 
 @section('content_header')
-    <h1>Listado de Generos</h1>
-@stop
-
-@section('content')
-    @include('partials.listado_genero')
-    @include('partials.modal_eliminar_genero')
-    @include('partials.modal_editar_genero')
-    @include('partials.modal_crear_genero')
+    <h1>Listado de Géneros</h1>
 @stop
 
 @section('css')
-    <!-- Cargar CSS de DataTables, Bootstrap y FontAwesome -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.bootstrap5.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/responsive/3.0.3/css/responsive.bootstrap5.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-
-    <!-- Ocultar la tabla inicialmente para evitar parpadeos -->
     <style>
-        /* Se usa el id "editorialesTable" para la tabla */
-        #generosTable {
-            visibility: hidden;
+        #Contenido { visibility: hidden; }
+        .acciones-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
         }
     </style>
 @stop
 
+@section('content')
+    @php $status = $status ?? request('status', 'activo'); @endphp
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <a href="{{ route('generos.index', ['status' => 'activo']) }}"
+                       class="btn btn-{{ $status==='activo' ? 'primary' : 'outline-primary' }}">
+                        Activos
+                    </a>
+                    <a href="{{ route('generos.index', ['status' => 'inactivo']) }}"
+                       class="btn btn-{{ $status==='inactivo' ? 'primary' : 'outline-primary' }}">
+                        Inactivos
+                    </a>
+                </div>
+                @if($status==='activo')
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalCrear">
+                        Crear Género
+                    </button>
+                @endif
+            </div>
+            <div class="card-body table-responsive">
+                <table id="Contenido" class="table table-bordered table-hover" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Nombre</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($generos as $g)
+                            <tr>
+                                <td>{{ $g->id }}</td>
+                                <td>{{ $g->nombre }}</td>
+                                <td class="text-center">
+                                    <div class="acciones-container">
+                                        @if($status==='activo')
+                                            <button class="btn btn-sm btn-warning"
+                                                    data-bs-toggle="modal" data-bs-target="#modalEditar"
+                                                    onclick="editarGenero({{ $g->id }})">
+                                                <i class="fas fa-pen"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger"
+                                                    data-bs-toggle="modal" data-bs-target="#modalEliminar"
+                                                    onclick="configurarEliminar({{ $g->id }})">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        @else
+                                            <form action="{{ route('generos.reactivate', $g->id) }}"
+                                                  method="POST"
+                                                  class="reactivar-form"
+                                                  data-confirm="¿Deseas reactivar este género?"
+                                                  style="display:inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-success">
+                                                    <i class="fas fa-redo"></i>
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        @include('partials.modal_crear_genero')
+        @include('partials.modal_editar_genero')
+        @include('partials.modal_eliminar_genero')
+
+        <div class="modal fade" id="modalConfirmacion" tabindex="-1" aria-labelledby="modalConfirmacionLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalConfirmacionLabel">Confirmar Acción</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p id="mensajeConfirmacion">¿Estás seguro de realizar esta acción?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-danger" id="btnConfirmarAccion">Confirmar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+@stop
+
 @section('js')
-    <!-- Scripts de jQuery, Bootstrap y DataTables -->
     <script src="https://code.jquery.com/jquery-3.7.1.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.datatables.net/2.1.8/js/dataTables.js"></script>
     <script src="https://cdn.datatables.net/2.1.8/js/dataTables.bootstrap5.js"></script>
     <script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.js"></script>
     <script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.js"></script>
-
+    <script src="{{ asset('js/genero.js') }}"></script>
+    <script src="{{ asset('js/confirmacion.js') }}"></script>
     <script>
-        $(document).ready(function() {
-            // Inicialización de DataTable para editoriales usando el id "editorialesTable"
-            var table = $('#generosTable').DataTable({
+    $(document).ready(function() {
+        let table;
+        if (!$.fn.DataTable.isDataTable('#Contenido')) {
+            table = $('#Contenido').DataTable({
                 responsive: true,
-                autoWidth: false,"language": {
-                    "lengthMenu": "Mostrar _MENU_ registros por página",
-                    "zeroRecords": "No se encontraron resultados",
-                    "info": "Mostrando _START_ a _END_ de _TOTAL_ registros",
-                    "infoEmpty": "Mostrando 0 a 0 de 0 registros",
-                    "infoFiltered": "(filtrado de _MAX_ registros totales)",
-                    "search": "Buscar:",
-                    emptyTable: "No se encontraron generos",
-
+                autoWidth: false,
+                language: {
+                    lengthMenu: "Mostrar _MENU_ registros por página",
+                    zeroRecords: "No se encontraron resultados",
+                    info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                    infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                    infoFiltered: "(filtrado de _MAX_ registros totales)",
+                    search: "Buscar:",
+                    emptyTable: "No se encontraron géneros"
                 },
                 initComplete: function () {
-                    // Mostrar la tabla una vez finalizada la inicialización
-                    $('#generosTable').css('visibility', 'visible');
+                    $('#Contenido').css('visibility', 'visible');
                 }
             });
+        } else {
+            table = $('#Contenido').DataTable();
+        }
 
-            // Recalcular columnas al cambiar la orientación o redimensionar la ventana
-            $(window).on('orientationchange resize', function(){
-                table.columns.adjust().responsive.recalc();
-            });
-
-            // Forzar el ajuste de columnas cuando se muestren los modales (crear, editar o eliminar)
-            $('#modalEditar, #modalCrear, #modalEliminar').on('shown.bs.modal', function () {
-                table.columns.adjust().responsive.recalc();
-            });
+        $(window).on('orientationchange resize', function() {
+            table.columns.adjust().responsive.recalc();
         });
+
+        $('#modalEditar, #modalCrear, #modalEliminar').on('shown.bs.modal', function () {
+            table.columns.adjust().responsive.recalc();
+        });
+
+        let formToSubmit = null;
+        $(document).on('submit', 'form[data-confirm]', function(e) {
+            e.preventDefault();
+            formToSubmit = this;
+            $('#mensajeConfirmacion').text($(this).data('confirm'));
+            const $btn = $('#btnConfirmarAccion');
+            if ($(this).hasClass('reactivar-form')) {
+                $btn.removeClass('btn-danger').addClass('btn-success').text('Reactivar');
+            } else {
+                $btn.removeClass('btn-success').addClass('btn-danger').text('Confirmar');
+            }
+            $('#modalConfirmacion').modal('show');
+        });
+
+        $('#btnConfirmarAccion').on('click', function() {
+            if (formToSubmit) formToSubmit.submit();
+        });
+    });
     </script>
-    <script src="{{ asset('js/genero.js') }}"></script>
 @stop

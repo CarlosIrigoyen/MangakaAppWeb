@@ -1,18 +1,5 @@
 $(document).ready(function() {
-    // Inicializa DataTables
-    $('#Contenido').DataTable({
-        "responsive": true,
-        "autoWidth": false,
-        "language": {
-            "lengthMenu": "Mostrar _MENU_ registros por página",
-            "zeroRecords": "No se encontraron resultados",
-            "info": "Mostrando _START_ a _END_ de _TOTAL_ registros",
-            "infoEmpty": "Mostrando 0 a 0 de 0 registros",
-            "infoFiltered": "(filtrado de _MAX_ registros totales)",
-            "search": "Buscar:"
-        }
-    });
-    $('#Contenido').css('visibility', 'visible');
+
 
     // Validación en tiempo real para el formulario de creación
     function validateCreateForm() {
@@ -126,7 +113,36 @@ function editarAutor(id) {
     });
 }
 
-// Función para configurar la eliminación del autor
 function configurarEliminar(id) {
+    // 1) Actualizar la acción del form
     $('#formEliminar').attr('action', '/autores/' + id);
+
+    // 2) Reset del modal
+    $('#eliminar-body-text')
+      .text('¿Estás seguro de que deseas dar de baja este autor?');
+    $('#btnConfirmEliminar')
+      .prop('disabled', false)
+      .text('Eliminar');
+
+    // 3) Chequeo vía AJAX
+    $.ajax({
+        url: '/autores/' + id + '/check-mangas',
+        method: 'GET',
+        success: function(data) {
+            if (data.mangas_count > 0) {
+                console.log(data.mangas_count);
+                $('#eliminar-body-text').html(
+                    'El Autor <strong>' + data.nombre + '</strong> tiene ' +
+                    data.mangas_count + ' manga(s) asociados y no se puede dar de baja.'
+                );
+                $('#btnConfirmEliminar')
+                  .prop('disabled', true)
+                  .text('No se puede dar de baja');
+            }
+        },
+        error: function() {
+            $('#eliminar-body-text').text('Error al comprobar dependencias.');
+            $('#btnConfirmEliminar').prop('disabled', true);
+        }
+    });
 }

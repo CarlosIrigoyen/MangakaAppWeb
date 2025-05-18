@@ -7,91 +7,115 @@ use Illuminate\Http\Request;
 
 class GeneroController extends Controller
 {
-    // Mostrar todos los géneros
-    public function index()
+    /**
+     * Muestra la lista de géneros activos o inactivos según ?status=
+     */
+    public function index(Request $request)
     {
-        $generos = Genero::all();
-        return view('generos.index', compact('generos'));
+        $status = $request->get('status', 'activo');
+
+        if ($status === 'inactivo') {
+            $generos = Genero::inactivo()->get();
+        } else {
+            $generos = Genero::activo()->get();
+        }
+
+        return view('generos.index', compact('generos', 'status'));
     }
 
-    // Mostrar el formulario para crear un nuevo género
-    public function create()
-    {
-        return view('generos.create');
-    }
-
-    // Guardar un nuevo género
+    /**
+     * Almacena un nuevo género o reactiva uno existente.
+     */
     public function store(Request $request)
-{
-    // Validar que se reciba algún texto
-    $request->validate([
-        'nombre' => 'required|string',
-    ]);
-
-    // Dividir la cadena ingresada por comas y limpiar espacios
-    $nombres = array_filter(array_map('trim', explode(',', $request->nombre)));
-
-    // Opcional: acumular errores si algún género ya existe
-    $errores = [];
-
-    foreach ($nombres as $nombre) {
-        // Validar que el nombre sea único
-        if (Genero::where('nombre', $nombre)->exists()) {
-            $errores[] = "El género '{$nombre}' ya existe.";
-            continue;
-        }
-
-        // Validar longitud o cualquier otra regla adicional si es necesario
-        if (strlen($nombre) > 255) {
-            $errores[] = "El género '{$nombre}' supera los 255 caracteres permitidos.";
-            continue;
-        }
-
-        // Si todo está ok, se crea el registro
-        Genero::create([
-            'nombre' => $nombre,
-        ]);
-    }
-
-    // Si hubo errores, se puede redirigir de vuelta con un mensaje, por ejemplo:
-    if (count($errores) > 0) {
-        return redirect()->route('generos.index')
-            ->with('error', implode(' ', $errores));
-    }
-
-    return redirect()->route('generos.index')
-        ->with('success', 'Géneros creados exitosamente');
-}
-
-
-    // Mostrar el formulario para editar un género
-    public function edit(Genero $genero){
-        // Verifica si la petición es AJAX, pero si sabes que solo se usará vía AJAX, simplemente retorna el JSON.
-        if (request()->ajax()) {
-            return response()->json($genero);
-        }
-
-        // Opcional: Si se accede de forma tradicional, puedes retornar la vista
-        return view('generos.edit', compact('genero'));
-    }
-    // Actualizar un género
-    public function update(Request $request, Genero $genero)
     {
-        $request->validate([
-            'nombre' => 'required|string|max:255|unique:generos,nombre,' . $genero->id,
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:255',
         ]);
 
-        $genero->update([
-            'nombre' => $request->nombre,
-        ]);
+        // Si existe pero inactivo, reactivarlo
+        $g = Genero::where('nombre', $validated['nombre'])->first();
+        if ($g) {
+            $g->activo = true;
+            $g->save();
+        } else {
+            Genero::create($validated + ['activo' => true]);
+        }
 
-        return redirect()->route('generos.index')->with('success', 'Género actualizado exitosamente');
+        return redirect()
+            ->route('generos.index', ['status' => 'activo'])
+            ->with('success', 'Género creado/reactivado exitosamente.');
     }
 
-    // Eliminar un género
-    public function destroy(Genero $genero)
+    /**
+     * Retorna JSON para el formulario de edición.
+     */
+    public function edit($id)
     {
-        $genero->delete();
-        return redirect()->route('generos.index')->with('success', 'Género eliminado exitosamente');
+        $genero = Genero::findOrFail($id);
+        return response()->json($genero);
+    }
+
+    /**
+     * Actualiza un género existente.
+     */
+    public function update(Request $request, $id)
+    {
+        $genero = Genero::findOrFail($id);
+
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:255',
+        ]);
+
+        $genero->update($validated);
+
+        return redirect()
+            ->route('generos.index', ['status' => 'activo'])
+            ->with('success', 'Género actualizado correctamente.');
+    }
+
+    /**
+     * Inactiva un género (si no tiene mangas asociados).
+     */
+    public function destroy($id)
+    {
+        $genero = Genero::withCount('mangas')->findOrFail($id);
+
+        if ($genero->mangas_count > 0) {
+            return back()
+                ->withErrors(['error' => "No se puede inactivar: tiene {$genero->mangas_count} manga(s) asociados."]);
+        }
+
+        $genero->activo = false;
+        $genero->save();
+
+        return redirect()
+            ->route('generos.index', ['status' => 'inactivo'])
+            ->with('success', 'Género inactivado correctamente.');
+    }
+
+    /**
+     * Reactiva un género inactivo.
+     */
+    public function reactivate($id)
+    {
+        $genero = Genero::findOrFail($id);
+        $genero->activo = true;
+        $genero->save();
+
+        return redirect()
+            ->route('generos.index', ['status' => 'activo'])
+            ->with('success', 'Género reactivado correctamente.');
+    }
+
+    /**
+     * AJAX: devuelve el conteo de mangas asociados.
+     */
+    public function checkMangas($id)
+    {
+        $genero = Genero::withCount('mangas')->findOrFail($id);
+        return response()->json([
+            'mangas_count' => $genero->mangas_count,
+            'nombre'       => $genero->nombre,
+        ]);
     }
 }

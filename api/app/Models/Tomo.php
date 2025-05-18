@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class Tomo extends Model
 {
-    // Definir la tabla explícitamente (opcional si Laravel ya la detecta correctamente)
     protected $table = 'tomos';
 
     protected $fillable = [
@@ -20,20 +20,30 @@ class Tomo extends Model
         'portada',
         'stock',
         'public_id',
+        'activo',
     ];
 
-    // Si prefieres que Laravel maneje las marcas de tiempo, puedes quitar esta línea
-    public $timestamps = false;
+    protected $casts = [
+        'activo' => 'boolean',
+    ];
 
-    // Relación: un Tomo pertenece a un Manga.
-    public function manga()
+    /**
+     * Scope global: sólo trae tomos con tomos.activo = true
+     */
+    protected static function booted()
     {
-        return $this->belongsTo(Manga::class, 'manga_id');
+        static::addGlobalScope('activo', function (Builder $builder) {
+            $builder->where('tomos.activo', true);
+        });
     }
 
-    // Relación: un Tomo pertenece a una Editorial.
+    public function manga()
+    {
+        return $this->belongsTo(Manga::class);
+    }
+
     public function editorial()
     {
-        return $this->belongsTo(Editorial::class, 'editorial_id');
+        return $this->belongsTo(Editorial::class);
     }
 }

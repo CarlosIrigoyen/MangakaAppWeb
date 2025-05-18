@@ -1,29 +1,5 @@
 $(document).ready(function() {
-    // Inicializa DataTables
-    $('#Contenido').DataTable({
-        "responsive": true,
-        "autoWidth": false,
-        "language": {
-            "lengthMenu": "Mostrar _MENU_ registros por página",
-            "zeroRecords": "No se encontraron resultados",
-            "info": "Mostrando _START_ a _END_ de _TOTAL_ registros",
-            "infoEmpty": "Mostrando 0 a 0 de 0 registros",
-            "infoFiltered": "(filtrado de _MAX_ registros totales)",
-            "search": "Buscar:",
-            emptyTable: "No se encontraron dibujantes",
 
-        }
-    });
-    $('#Contenido').css('visibility', 'visible');
-    // Evento para ajustar la tabla al cambiar la orientación o redimensionar la ventana
-    $(window).on('orientationchange resize', function(){
-        table.columns.adjust().responsive.recalc();
-    });
-
-    // En caso de que un modal modifique el layout, ajustar la tabla al mostrarse
-    $('#modalEditar, #modalCrear, #modalEliminar').on('shown.bs.modal', function () {
-        table.columns.adjust().responsive.recalc();
-    });
     // Validación en tiempo real para el formulario de creación
     function validateCreateForm() {
         var nombre = $('#nombre').val();
@@ -138,5 +114,28 @@ function editarDibujante(id) {
 
 // Función para configurar la eliminación del dibujante
 function configurarEliminar(id) {
+    $('#eliminar-body-text').text('¿Estás seguro de que deseas dar de baja este dibujante?');
+    $('#btnConfirmEliminar').prop('disabled', false).text('Eliminar');
     $('#formEliminar').attr('action', '/dibujantes/' + id);
+
+    $.ajax({
+        url: '/dibujantes/' + id + '/check-mangas',
+        method: 'GET',
+        success: function(data) {
+            if (data.mangas_count > 0) {
+                $('#eliminar-body-text').html(
+                    'El dibujante <strong>' + data.nombre + '</strong> tiene ' +
+                    data.mangas_count + ' manga(s) asociados y no se puede dar de baja.'
+                );
+                $('#btnConfirmEliminar')
+                    .prop('disabled', true)
+                    .text('No se puede dar de baja');
+            }
+        },
+        error: function() {
+            $('#eliminar-body-text').text('Error al comprobar dependencias.');
+            $('#btnConfirmEliminar').prop('disabled', true);
+        }
+    });
 }
+
