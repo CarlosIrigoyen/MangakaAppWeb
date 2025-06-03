@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\TomoController;
+use App\Http\Controllers\VentaController;
 use App\Models\Autor;
 use App\Models\Manga;
 use App\Models\Editorial;
@@ -42,4 +43,21 @@ Route::get('filters', function () {
         'minPrice'   => $minPrice,
         'maxPrice'   => $maxPrice,
     ]);
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    // Checkout crea venta, factura y detalles, y decrementa stock
+    Route::post('/checkout', [VentaController::class, 'checkout']);
+
+    // Listar todas las facturas del cliente
+    Route::get('/mis-facturas', [VentaController::class, 'indexFacturas'])
+         ->name('mis-facturas.index');
+
+    // Mostrar el detalle de una factura en JSON
+    Route::get('/mis-facturas/{factura}', [VentaController::class, 'showFactura'])
+         ->name('mis-facturas.show');
+
+    // Descargar la factura en PDF
+    Route::get('/mis-facturas/{factura}/pdf', [VentaController::class, 'descargarFactura'])
+         ->name('mis-facturas.pdf');
 });

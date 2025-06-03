@@ -23,6 +23,8 @@ Route::middleware('guest')->group(function () {
     });
 });
 
+
+
 /*
 |--------------------------------------------------------------------------
 | Rutas protegidas por autenticación
