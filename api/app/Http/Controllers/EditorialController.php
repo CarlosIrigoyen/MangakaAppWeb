@@ -35,12 +35,9 @@ class EditorialController extends Controller
         ], [
             'pais.regex' => 'El país no puede contener números.',
         ]);
-
-        // Si existe pero está inactiva, la reactivamos
-        $editorial = Editorial::withTrashed() // si usas soft deletes; o quita withTrashed()
-                             ->where('nombre', $validated['nombre'])
-                             ->where('pais', $validated['pais'])
-                             ->first();
+        $editorial = Editorial::where('nombre', $validated['nombre'])
+                      ->where('pais', $validated['pais'])
+                      ->first();
 
         if ($editorial) {
             $editorial->activo = true;

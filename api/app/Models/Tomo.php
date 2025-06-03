@@ -25,7 +25,9 @@ class Tomo extends Model
 
     protected $casts = [
         'activo' => 'boolean',
+        'fecha_publicacion' => 'datetime:Y-m-d',
     ];
+
 
     /**
      * Scope global: sólo trae tomos con tomos.activo = true
