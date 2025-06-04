@@ -1,5 +1,5 @@
-   <!-- Modal para crear editorial -->
-   <div class="modal fade" id="modalCrear" tabindex="-1" aria-labelledby="modalCrearLabel" aria-hidden="true">
+<!-- Modal para crear editorial -->
+<div class="modal fade" id="modalCrear" tabindex="-1" aria-labelledby="modalCrearLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -12,15 +12,40 @@
                     @csrf
                     <div class="mb-3">
                         <label for="nombre" class="form-label">Nombre</label>
-                        <input type="text" class="form-control" id="nombre" name="nombre" required>
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="nombre"
+                          name="nombre"
+                          required
+                        >
                     </div>
                     <div class="mb-3">
                         <label for="pais" class="form-label">País</label>
-                        <input type="text" class="form-control" id="pais" name="pais" required>
+                        <select
+                          class="form-control"
+                          id="pais"
+                          name="pais"
+                          required
+                        >
+                            <option value="" disabled selected>— Selecciona un país —</option>
+                            <option value="Argentina">Argentina</option>
+                            <option value="España">España</option>
+                            <option value="México">México</option>
+                            <option value="Chile">Chile</option>
+                            <option value="Japón">Japón</option>
+                        </select>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Crear Editorial</button>
+                        <button
+                          type="button"
+                          class="btn btn-secondary"
+                          data-bs-dismiss="modal"
+                        >Cancelar</button>
+                        <button
+                          type="submit"
+                          class="btn btn-primary"
+                        >Crear Editorial</button>
                     </div>
                 </form>
             </div>
