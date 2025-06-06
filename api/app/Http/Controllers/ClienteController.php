@@ -10,37 +10,40 @@ use Illuminate\Support\Facades\Auth;
 
 class ClienteController extends Controller
 {
-    public function store(Request $request)
-    {
-        // Validación de los datos entrantes para registro
-        $validator = Validator::make($request->all(), [
-            'nombre'   => 'required|string|max:255',
-            'email'    => 'required|email|unique:clientes,email',
-            'password' => 'required|string|min:6',
-        ]);
+   public function store(Request $request)
+{
+    // Validación de los datos entrantes para registro
+    $validator = Validator::make($request->all(), [
+        'nombre'    => 'required|string|max:255',
+        'email'     => 'required|email|unique:clientes,email',
+        'password'  => 'required|string|min:6',
+        'direccion' => 'required|string|max:255', // Validación del nuevo campo
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        // Creación del nuevo cliente, con contraseña encriptada
-        $cliente = Cliente::create([
-            'nombre'   => $request->nombre,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        // Generar token para autenticación
-        $token = $cliente->createToken('auth_token')->plainTextToken;
-
+    if ($validator->fails()) {
         return response()->json([
-            'mensaje' => 'Cliente creado correctamente',
-            'cliente' => $cliente,
-            'token'   => $token
-        ], 201);
+            'errors' => $validator->errors()
+        ], 422);
     }
+
+    // Creación del nuevo cliente, con contraseña encriptada
+    $cliente = Cliente::create([
+        'nombre'    => $request->nombre,
+        'email'     => $request->email,
+        'password'  => Hash::make($request->password),
+        'direccion' => $request->direccion, // Agregado aquí también
+    ]);
+
+    // Generar token para autenticación
+    $token = $cliente->createToken('auth_token')->plainTextToken;
+
+    return response()->json([
+        'mensaje' => 'Cliente creado correctamente',
+        'cliente' => $cliente,
+        'token'   => $token
+    ], 201);
+}
+
 
     public function login(Request $request)
     {
