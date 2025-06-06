@@ -10,7 +10,7 @@ class Cliente extends Authenticatable
 {
     use HasApiTokens, Notifiable;
 
-    protected $fillable = ['nombre', 'email', 'password'];
+    protected $fillable = ['nombre', 'email', 'password','direccion'];
 
     // Opcional: ocultar campos sensibles en las respuestas JSON
     protected $hidden = ['password', 'remember_token'];
