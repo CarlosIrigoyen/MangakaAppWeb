@@ -298,40 +298,50 @@ class TomoController extends Controller
     }
     // api para obtener los tomos y mostrarlos en el front de react
     public function indexPublic(Request $request)
-    {
-        $query = Tomo::with('manga', 'editorial', 'manga.autor', 'manga.generos');
+{
+    $query = Tomo::with('manga', 'editorial', 'manga.autor', 'manga.generos');
 
-        if ($request->filled('authors')) {
-            $ids = explode(',', $request->get('authors'));
-            $query->whereHas('manga.autor', fn($q) => $q->whereIn('id', $ids));
-        }
-        if ($request->filled('languages')) {
-            $langs = explode(',', $request->get('languages'));
-            $query->whereIn('idioma', $langs);
-        }
-        if ($request->filled('mangas')) {
-            $mids = explode(',', $request->get('mangas'));
-            $query->whereIn('manga_id', $mids);
-        }
-        if ($request->filled('editorials')) {
-            $eids = explode(',', $request->get('editorials'));
-            $query->whereIn('editorial_id', $eids);
-        }
-        if ($search = $request->get('search')) {
-            $query->where(fn($q) =>
-                $q->where('numero_tomo', 'like', "%{$search}%")
-                  ->orWhereHas('manga', fn($q2) => $q2->where('titulo', 'like', "%{$search}%"))
-                  ->orWhereHas('editorial', fn($q3) => $q3->where('nombre', 'like', "%{$search}%"))
-            );
-        }
-        if ($request->get('applyPriceFilter') == 1 && $request->filled(['minPrice', 'maxPrice'])) {
-            $query->whereBetween('precio', [floatval($request->minPrice), floatval($request->maxPrice)]);
-        }
-
-        $query->orderByRaw("(select titulo from mangas where mangas.id = tomos.manga_id) asc")
-              ->orderBy('numero_tomo', 'asc');
-
-        $tomos = $query->paginate(8)->appends($request->query());
-        return response()->json($tomos);
+    if ($request->filled('authors')) {
+        $ids = explode(',', $request->get('authors'));
+        $query->whereHas('manga.autor', fn($q) => $q->whereIn('id', $ids));
     }
+
+    if ($request->filled('languages')) {
+        $langs = explode(',', $request->get('languages'));
+        $query->whereIn('idioma', $langs);
+    }
+
+    if ($request->filled('mangas')) {
+        $mids = explode(',', $request->get('mangas'));
+        $query->whereIn('manga_id', $mids);
+    }
+
+    if ($request->filled('editorials')) {
+        $eids = explode(',', $request->get('editorials'));
+        $query->whereIn('editorial_id', $eids);
+    }
+
+    if ($search = $request->get('search')) {
+        $query->where(fn($q) =>
+            $q->where('numero_tomo', 'like', "%{$search}%")
+              ->orWhereHas('manga', fn($q2) => $q2->where('titulo', 'like', "%{$search}%"))
+              ->orWhereHas('editorial', fn($q3) => $q3->where('nombre', 'like', "%{$search}%"))
+        );
+    }
+
+    if ($request->get('applyPriceFilter') == 1 && $request->filled(['minPrice', 'maxPrice'])) {
+        $query->whereBetween('precio', [floatval($request->minPrice), floatval($request->maxPrice)]);
+    }
+
+    // Filtro por fecha de publicación actual o pasada
+    $query->whereDate('fecha_publicacion', '<=', now());
+
+    $query->orderByRaw("(select titulo from mangas where mangas.id = tomos.manga_id) asc")
+          ->orderBy('numero_tomo', 'asc');
+
+    $tomos = $query->paginate(8)->appends($request->query());
+
+    return response()->json($tomos);
+}
+
 }

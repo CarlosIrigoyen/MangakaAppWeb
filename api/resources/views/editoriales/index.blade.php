@@ -28,7 +28,6 @@
     <div class="container">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                {{-- Toggle Act/Inaçt --}}
                 <div>
                     <a href="{{ route('editoriales.index', ['status' => 'activo']) }}"
                        class="btn btn-{{ $status==='activo' ? 'primary' : 'outline-primary' }}">
@@ -39,7 +38,6 @@
                         Inactivas
                     </a>
                 </div>
-                {{-- Solo “Crear” en activas --}}
                 @if($status==='activo')
                     <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalCrear">
                         Crear Editorial
@@ -65,20 +63,21 @@
                                 <td class="text-center">
                                     <div class="acciones-container">
                                         @if($status==='activo')
-                                            {{-- Editar --}}
-                                            <button class="btn btn-sm btn-warning"
-                                                    data-bs-toggle="modal" data-bs-target="#modalEditar"
-                                                    onclick="editarEditorial({{ $e->id }})">
+                                            <button
+                                              class="btn btn-sm btn-warning"
+                                              onclick="editarEditorial({{ $e->id }})"
+                                            >
                                                 <i class="fas fa-pen"></i>
                                             </button>
-                                            {{-- Inactivar --}}
-                                            <button class="btn btn-sm btn-danger"
-                                                    data-bs-toggle="modal" data-bs-target="#modalEliminar"
-                                                    onclick="configurarEliminar({{ $e->id }})">
+                                            <button
+                                              class="btn btn-sm btn-danger"
+                                              data-bs-toggle="modal"
+                                              data-bs-target="#modalEliminar"
+                                              onclick="configurarEliminar({{ $e->id }})"
+                                            >
                                                 <i class="fas fa-trash-alt"></i>
                                             </button>
                                         @else
-                                            {{-- Reactivar con confirmación --}}
                                             <form action="{{ route('editoriales.reactivate', $e->id) }}"
                                                   method="POST"
                                                   class="reactivar-form"
@@ -100,10 +99,9 @@
         </div>
 
         @include('partials.modal_crear_editorial')
-        @include('partials.modal_editar_editorial')
         @include('partials.modal_eliminar_editorial')
-
-        {{-- Modal de confirmación reutilizable --}}
+        @include('partials.modal_editar_editorial')
+        {{-- Modal de confirmación genérico --}}
         <div class="modal fade" id="modalConfirmacion" tabindex="-1" aria-labelledby="modalConfirmacionLabel" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -131,65 +129,110 @@
     <script src="https://cdn.datatables.net/2.1.8/js/dataTables.bootstrap5.js"></script>
     <script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.js"></script>
     <script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.js"></script>
-    <script src="{{ asset('js/editorial.js') }}"></script>
-    <!-- Script confirmación genérico -->
     <script src="{{ asset('js/confirmacion.js') }}"></script>
+
     <script>
-    $(document).ready(function() {
-        let table;
-        // Inicializar DataTable solo una vez
-        if (!$.fn.DataTable.isDataTable('#Contenido')) {
-            table = $('#Contenido').DataTable({
-                responsive: true,
-                autoWidth: false,
-                language: {
-                    lengthMenu: "Mostrar _MENU_ registros por página",
-                    zeroRecords: "No se encontraron resultados",
-                    info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
-                    infoEmpty: "Mostrando 0 a 0 de 0 registros",
-                    infoFiltered: "(filtrado de _MAX_ registros totales)",
-                    search: "Buscar:",
-                    emptyTable: "No se encontraron editoriales"
-                },
-                initComplete: function () {
-                    $('#Contenido').css('visibility', 'visible');
-                }
-            });
-        } else {
-            table = $('#Contenido').DataTable();
-        }
-
-        // Ajuste de columnas en responsive
-        $(window).on('orientationchange resize', function() {
-            table.columns.adjust().responsive.recalc();
-        });
-
-        // Ajuste al mostrar modales
-        $('#modalEditar, #modalCrear, #modalEliminar').on('shown.bs.modal', function () {
-            table.columns.adjust().responsive.recalc();
-        });
-
-        // Manejo genérico de confirmación
-        let formToSubmit = null;
-        $(document).on('submit', 'form[data-confirm]', function(e) {
-            e.preventDefault();
-            formToSubmit = this;
-            const mensaje = $(this).data('confirm');
-            $('#mensajeConfirmacion').text(mensaje);
-
-            const $btn = $('#btnConfirmarAccion');
-            if ($(this).hasClass('reactivar-form')) {
-                $btn.removeClass('btn-danger').addClass('btn-success').text('Reactivar');
+        $(document).ready(function() {
+            let table;
+            if (!$.fn.DataTable.isDataTable('#Contenido')) {
+                table = $('#Contenido').DataTable({
+                    responsive: true,
+                    autoWidth: false,
+                    language: {
+                        lengthMenu: "Mostrar _MENU_ registros por página",
+                        zeroRecords: "No se encontraron resultados",
+                        info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                        infoEmpty: "Mostrando 0 a 0 de 0 registros",
+                        infoFiltered: "(filtrado de _MAX_ registros totales)",
+                        search: "Buscar:",
+                        emptyTable: "No se encontraron editoriales"
+                    },
+                    initComplete: function () {
+                        $('#Contenido').css('visibility', 'visible');
+                    }
+                });
             } else {
-                $btn.removeClass('btn-success').addClass('btn-danger').text('Confirmar');
+                table = $('#Contenido').DataTable();
             }
 
-            $('#modalConfirmacion').modal('show');
+            $(window).on('orientationchange resize', function() {
+                table.columns.adjust().responsive.recalc();
+            });
+
+            $('#modalCrear, #modalEliminar').on('shown.bs.modal', function () {
+                table.columns.adjust().responsive.recalc();
+            });
+
+            let formToSubmit = null;
+            $(document).on('submit', 'form[data-confirm]', function(e) {
+                e.preventDefault();
+                formToSubmit = this;
+                const mensaje = $(this).data('confirm');
+                $('#mensajeConfirmacion').text(mensaje);
+
+                const $btn = $('#btnConfirmarAccion');
+                if ($(this).hasClass('reactivar-form')) {
+                    $btn.removeClass('btn-danger').addClass('btn-success').text('Reactivar');
+                } else {
+                    $btn.removeClass('btn-success').addClass('btn-danger').text('Confirmar');
+                }
+
+                $('#modalConfirmacion').modal('show');
+            });
+
+            $('#btnConfirmarAccion').on('click', function() {
+                if (formToSubmit) {
+                    formToSubmit.submit();
+                }
+            });
         });
 
-        $('#btnConfirmarAccion').on('click', function() {
-            if (formToSubmit) formToSubmit.submit();
-        });
-    });
-</script>
+        function editarEditorial(id) {
+            console.log('>>> editarEditorial() invocado con ID =', id);
+
+            $.ajax({
+                url: '/editoriales/' + id + '/edit',
+                method: 'GET',
+                success: function(data) {
+                    console.log(data.nombre);
+                    $('#nombre_edicion').val(data.nombre);
+                    $('#pais_edicion').val(data.pais);
+                    $('#formEditar').attr('action', '/editoriales/' + id);
+                    $('#modalEditar').modal('show');
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error al cargar los datos de la editorial:", error);
+                }
+            });
+        }
+
+        function configurarEliminar(id) {
+            $('#formEliminar').attr('action', '/editoriales/' + id);
+            $('#eliminar-body-text')
+              .text('¿Estás seguro de que deseas dar de baja esta editorial?');
+            $('#btnConfirmEliminar')
+              .prop('disabled', false)
+              .text('Eliminar');
+
+            $.ajax({
+                url: '/editoriales/' + id + '/check-tomos',
+                method: 'GET',
+                success: function(data) {
+                    if (data.tomos_count > 0) {
+                        $('#eliminar-body-text').html(
+                            'La editorial <strong>' + data.nombre + '</strong> tiene ' +
+                            data.tomos_count + ' tomo(s) asociados y no se puede dar de baja.'
+                        );
+                        $('#btnConfirmEliminar')
+                          .prop('disabled', true)
+                          .text('No se puede dar de baja');
+                    }
+                },
+                error: function() {
+                    $('#eliminar-body-text').text('Error al comprobar dependencias.');
+                    $('#btnConfirmEliminar').prop('disabled', true);
+                }
+            });
+        }
+    </script>
 @stop

@@ -21,7 +21,12 @@ class EditorialController extends Controller
             $editoriales = Editorial::activo()->get();
         }
 
-        return view('editoriales.index', compact('editoriales', 'status'));
+        $paises = Editorial::select('pais')
+                    ->distinct()
+                    ->orderBy('pais')
+                    ->pluck('pais');
+
+        return view('editoriales.index', compact('editoriales', 'status', 'paises'));
     }
 
     /**
@@ -36,11 +41,9 @@ class EditorialController extends Controller
             'pais.regex' => 'El país no puede contener números.',
         ]);
 
-        // Si existe pero está inactiva, la reactivamos
-        $editorial = Editorial::withTrashed() // si usas soft deletes; o quita withTrashed()
-                             ->where('nombre', $validated['nombre'])
-                             ->where('pais', $validated['pais'])
-                             ->first();
+        $editorial = Editorial::where('nombre', $validated['nombre'])
+                      ->where('pais', $validated['pais'])
+                      ->first();
 
         if ($editorial) {
             $editorial->activo = true;
@@ -91,7 +94,6 @@ class EditorialController extends Controller
     {
         $editorial = Editorial::findOrFail($id);
 
-        // Si tiene tomos asociados, no permitir
         $tomosCount = Tomo::where('editorial_id', $id)->count();
         if ($tomosCount > 0) {
             return back()
@@ -116,12 +118,12 @@ class EditorialController extends Controller
         $editorial->save();
 
         return redirect()
-            ->route('editoriales.index', ['status' => 'activo']) // <-- cambiar a 'activo'
+            ->route('editoriales.index', ['status' => 'activo'])
             ->with('success', 'Editorial reactivada correctamente.');
     }
 
     /**
-     * Comprueba via AJAX cuántos tomos tiene la editorial.
+     * Comprueba vía AJAX cuántos tomos tiene la editorial.
      */
     public function checkTomos($id)
     {
