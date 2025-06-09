@@ -119,5 +119,10 @@ return [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
+     'mercadopago' => [
+        'access_token' => env('MP_ACCESS_TOKEN'),
+        'public_key'   => env('MERCADO_PAGO_PUBLIC_KEY'),
+        'sandbox'      => env('MP_SANDBOX', false),
+    ],
 
 ];
