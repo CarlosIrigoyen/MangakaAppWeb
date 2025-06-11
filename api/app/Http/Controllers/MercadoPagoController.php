@@ -83,72 +83,41 @@ class MercadoPagoController extends Controller
     }
     public function webhook(Request $request)
 {
-    Log::info('📥 MercadoPago Webhook recibido: ', $request->all());
+    Log::info('📥 Webhook recibido:', $request->all());
 
     $payload = $request->all();
     $type    = $payload['type']       ?? null;
     $id      = $payload['data']['id'] ?? $payload['data_id'] ?? null;
 
     if ($type !== 'payment' || ! $id) {
-        return response()->json(['message' => 'Webhook sin datos de pago'], 400);
+        Log::warning('⚠️ Webhook sin datos válidos (tipo o ID ausente)');
+        return response()->json(['message' => 'Datos incompletos'], 400);
     }
 
-    Log::info("🕵️‍♂️ Buscando pago con ID: {$id}");
+    try {
+        $paymentClient = new PaymentClient();
+        $payment       = $paymentClient->get($id);
 
-    $url   = "https://api.mercadopago.com/v1/payments/{$id}";
-    $token = env('MP_ACCESS_TOKEN');
+        Log::info('✅ Información del pago obtenida desde SDK:', [
+            'id'                 => $payment->id,
+            'status'             => $payment->status,
+            'status_detail'      => $payment->status_detail,
+            'external_reference' => $payment->external_reference,
+            'transaction_amount' => $payment->transaction_amount,
+        ]);
+    } catch (MPApiException $e) {
+        $error = $e->getApiResponse()
+            ? $e->getApiResponse()->getContent()
+            : $e->getMessage();
 
-    // Intentos en caso de 404
-    $maxAttempts = 10;
-    $attempt     = 0;
-    $response    = null;
+        Log::error("❌ Error al obtener el pago desde SDK:", [
+            'message' => $error,
+        ]);
 
-    while ($attempt < $maxAttempts) {
-        $response = Http::withToken($token)->get($url);
-
-        if ($response->ok()) {
-            break;
-        }
-
-        if ($response->status() === 404) {
-            $attempt++;
-            Log::warning("⚠️ Pago no encontrado (404). Intento {$attempt}/{$maxAttempts}, reintentando en 1s...");
-            sleep(10);
-        } else {
-            // otro error distinto a 404 → salimos
-            break;
-        }
+        return response()->json(['message' => 'Error al obtener el pago'], 500);
     }
 
-    if (! $response->ok()) {
-        Log::error("❌ Error HTTP ({$response->status()}) al consultar el pago tras {$attempt} reintentos: {$response->body()}");
-        return response()->json([
-            'message' => 'Error al obtener el pago',
-            'status'  => $response->status(),
-            'body'    => $response->body(),
-        ], 500);
-    }
-
-    $payment = $response->json();
-    Log::info('💵 Pago recuperado:', [
-        'status'             => $payment['status']             ?? null,
-        'status_detail'      => $payment['status_detail']      ?? null,
-        'external_reference' => $payment['external_reference'] ?? null,
-        'transaction_amount' => $payment['transaction_amount'] ?? null,
-    ]);
-
-    if (($payment['status'] ?? '') === 'approved') {
-        $factura = Factura::find($payment['external_reference']);
-        if ($factura) {
-            $factura->pagado = true;
-            $factura->save();
-            Log::info("✅ Factura #{$factura->id} marcada como pagada");
-        } else {
-            Log::warning("⚠️ No se encontró factura con ID: {$payment['external_reference']}");
-        }
-    }
-
-    return response()->json(['message' => 'Pago procesado con éxito'], 200);
+    return response()->json(['message' => 'Pago registrado en log'], 200);
 }
 
 }
