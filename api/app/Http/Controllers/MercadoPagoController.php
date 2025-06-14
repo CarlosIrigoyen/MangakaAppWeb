@@ -52,10 +52,13 @@ class MercadoPagoController extends Controller
         $preferenceData = [
             'items' => $items,
             'back_urls' => [
-                'success' => 'http://localhost:3000/checkout/success',
+                'success' => 'http://localhost:3000',
                 'failure' => 'http://localhost:3000/checkout/failure',
                 'pending' => 'http://localhost:3000/checkout/pending',
             ],
+           //  'auto_return'        => 'approved',
+            // Notification URL hardcodeada al túnel de Ngrok
+            'notification_url'   => 'https://8b4c-186-62-84-7.ngrok-free.app/api/mercadopago/webhook',
             'external_reference' => (string) $factura->id,
         ];
 
@@ -63,7 +66,6 @@ class MercadoPagoController extends Controller
             $preference = (new PreferenceClient())->create($preferenceData);
 
             return response()->json([
-                'sandbox_init_point' => $preference->sandbox_init_point,
                 'init_point'         => $preference->init_point,
                 'id'                 => $preference->id,
                 'external_reference' => $preference->external_reference,
@@ -105,6 +107,34 @@ class MercadoPagoController extends Controller
             'external_reference' => $payment->external_reference,
             'transaction_amount' => $payment->transaction_amount,
         ]);
+        if ($payment->status === 'approved') {
+            // 1) Marcar factura como pagada
+            $factura = Factura::with('detalles.tomo')
+                              ->find($payment->external_reference);
+
+            if (! $factura) {
+                Log::warning("⚠️ Factura no encontrada: {$payment->external_reference}");
+            } else {
+                $factura->pagado = true;
+                $factura->save();
+                Log::info("✅ Factura #{$factura->id} marcada como pagada");
+
+                // 2) Para cada detalle, decrementar stock del tomo
+                foreach ($factura->detalles as $detalle) {
+                    $tomo = $detalle->tomo;
+                    if ($tomo) {
+                        $originalStock = $tomo->stock ?? 0;
+                        $decrement     = (int) $detalle->cantidad;
+                        $tomo->stock   = max(0, $originalStock - $decrement);
+                        $tomo->save();
+
+                        Log::info("📦 Tomo ID {$tomo->id} stock: {$originalStock} → {$tomo->stock}");
+                    } else {
+                        Log::warning("⚠️ DetalleFactura #{$detalle->id} sin tomo asociado");
+                    }
+                }
+            }
+        }
     } catch (MPApiException $e) {
         $error = $e->getApiResponse()
             ? $e->getApiResponse()->getContent()
