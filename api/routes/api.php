@@ -6,10 +6,12 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\TomoController;
 use App\Http\Controllers\VentaController;
+use App\Http\Controllers\FacturaController;
 use App\Http\Controllers\MercadoPagoController;
 use App\Models\Autor;
 use App\Models\Manga;
 use App\Models\Editorial;
+use App\Models\Factura;
 use App\Models\Tomo;
 
 Route::post('/register', [ClienteController::class, 'store']);
@@ -39,10 +41,9 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('ventas')->group(function () {
-        Route::post('checkout', [VentaController::class, 'checkout']);
-        Route::get('mis-facturas',          [VentaController::class, 'indexFacturas'])
+        Route::get('mis-facturas',          [FacturaController::class, 'index'])
              ->name('mis-facturas.index');
-        Route::get('mis-facturas/{factura}', [VentaController::class, 'showFactura'])
+        Route::get('mis-facturas/{factura}', [FacturaController::class, 'show'])
              ->name('mis-facturas.show');
     });
 
