@@ -21,6 +21,7 @@ class VentaController extends Controller
 
         try {
             // 1) Calcular total y verificar stock
+            //agreado script de json para probar la api
             $totalVenta = 0;
             foreach ($items as $item) {
                 $tomo = Tomo::findOrFail($item['id']);
