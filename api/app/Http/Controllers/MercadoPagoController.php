@@ -52,7 +52,7 @@ class MercadoPagoController extends Controller
         $preferenceData = [
             'items' => $items,
             'back_urls' => [
-                 'success' => (env('SUCCESS_URL')),
+                 'success' => 'mangakaappwebfront-production.up.railway.app',
                  'failure' => 'https://mangakaapp.loca.lt/checkout/failure',
                  'pending' => 'https://mangakaapp.loca.lt/checkout/pending',
             ],
