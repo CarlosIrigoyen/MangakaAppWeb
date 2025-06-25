@@ -6,11 +6,20 @@ use Illuminate\Database\Eloquent\Model;
 
 class Factura extends Model
 {
-    protected $fillable = ['venta_id', 'numero'];
+    protected $fillable = [
+        'numero',
+        'cliente_id',
+        'pagado',
+    ];
 
-    public function venta()
+    protected $casts = [
+        'pagado' => 'boolean',
+    ];
+
+    // Relación con Cliente
+    public function cliente()
     {
-        return $this->belongsTo(Venta::class);
+        return $this->belongsTo(Cliente::class);
     }
 
     public function detalles()

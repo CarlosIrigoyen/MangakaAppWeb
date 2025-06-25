@@ -1,63 +1,52 @@
 <?php
+// routes/api.php
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\TomoController;
 use App\Http\Controllers\VentaController;
+use App\Http\Controllers\FacturaController;
+use App\Http\Controllers\MercadoPagoController;
 use App\Models\Autor;
 use App\Models\Manga;
 use App\Models\Editorial;
+use App\Models\Factura;
 use App\Models\Tomo;
 
-// Rutas de autenticación con tokens
 Route::post('/register', [ClienteController::class, 'store']);
-Route::post('/login', [ClienteController::class, 'login']);
-Route::post('/logout', [ClienteController::class, 'logout'])->middleware('auth:sanctum');
+Route::post('/login',    [ClienteController::class, 'login']);
 
-// Endpoint para obtener el usuario autenticado basado en el token
-Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
-    return response()->json($request->user());
-});
+// --- RUTAS PÚBLICAS (ACCESIBLES SIN AUTENTICACIÓN) ---
 
-// Rutas públicas que no requieren autenticación
 Route::get('public/tomos', [TomoController::class, 'indexPublic']);
-
 Route::get('filters', function () {
-    $authors = Autor::select('id', 'nombre', 'apellido')->get();
-    $mangas = Manga::select('id', 'titulo')->get();
-    $editorials = Editorial::select('id', 'nombre')->get();
-
-    // Idiomas fijos o provenientes de la base de datos
-    $languages = ['Español', 'Inglés', 'Japonés'];
-
-    // Obtener el precio mínimo y máximo de los tomos
-    $minPrice = Tomo::min('precio');
-    $maxPrice = Tomo::max('precio');
-
-    return response()->json([
-        'authors'    => $authors,
-        'languages'  => $languages,
-        'mangas'     => $mangas,
-        'editorials' => $editorials,
-        'minPrice'   => $minPrice,
-        'maxPrice'   => $maxPrice,
-    ]);
+    $authors    = Autor::select('id','nombre','apellido')->get();
+    $mangas     = Manga::select('id','titulo')->get();
+    $editorials = Editorial::select('id','nombre')->get();
+    $languages  = ['Español','Inglés','Japonés'];
+    $minPrice   = Tomo::min('precio');
+    $maxPrice   = Tomo::max('precio');
+    return response()->json(compact('authors','languages','mangas','editorials','minPrice','maxPrice'));
 });
 
+// webhook público de MercadoPago (ngrok debe apuntar aquí)
+Route::post('mercadopago/webhook', [MercadoPagoController::class, 'webhook']);
+
+// --- RUTAS PROTEGIDAS (REQUIEREN AUTENTICACIÓN CON SANCTUM) ---
 Route::middleware('auth:sanctum')->group(function () {
-    // Checkout crea venta, factura y detalles, y decrementa stock
-    Route::post('/checkout', [VentaController::class, 'checkout']);
+    Route::post('/logout', [ClienteController::class, 'logout']);
+    Route::get('/me', function (Request $request) {
+        return response()->json($request->user());
+    });
 
-    // Listar todas las facturas del cliente
-    Route::get('/mis-facturas', [VentaController::class, 'indexFacturas'])
-         ->name('mis-facturas.index');
+    Route::prefix('ventas')->group(function () {
+        Route::get('mis-facturas',          [FacturaController::class, 'index'])
+             ->name('mis-facturas.index');
+        Route::get('mis-facturas/{factura}', [FacturaController::class, 'show'])
+             ->name('mis-facturas.show');
+    });
 
-    // Mostrar el detalle de una factura en JSON
-    Route::get('/mis-facturas/{factura}', [VentaController::class, 'showFactura'])
-         ->name('mis-facturas.show');
-
-    // Descargar la factura en PDF
-    Route::get('/mis-facturas/{factura}/pdf', [VentaController::class, 'descargarFactura'])
-         ->name('mis-facturas.pdf');
+    // Crear preferencia de pago (requiere auth)
+    Route::post('mercadopago/preference', [MercadoPagoController::class, 'createPreference']);
 });
