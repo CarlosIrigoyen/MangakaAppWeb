@@ -58,7 +58,7 @@ class MercadoPagoController extends Controller
             ],
             'auto_return'      => 'approved',
             // Notification URL hardcodeada al túnel de Ngrok
-            'notification_url'   => 'https://0f15-186-62-1-201.ngrok-free.app/api/mercadopago/webhook',
+            'notification_url'   => (env('MERCADOPAGO_NOTIFICATION_URL')),
             'external_reference' => (string) $factura->id,
         ];
 
