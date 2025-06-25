@@ -1,0 +1,629 @@
+{
+	"info": {
+		"_postman_id": "bc1aa0cf-5979-4893-9bda-1743faacdd26",
+		"name": "MangakaApp Test - Maria y Otro",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "31871129"
+	},
+	"item": [
+		{
+			"name": "1. Login Maria",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const json = pm.response.json();",
+							"if (json.token) {",
+							"    pm.environment.set(\"maria_token\", json.token);",
+							"    console.log(\"maria_token set to\", json.token);",
+							"} else {",
+							"    console.error(\"No token in login response\");",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"maria@maria.com\",\n  \"password\": \"12345678\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/login",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "1. Logout Maria",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const json = pm.response.json();",
+							"if (json.token) {",
+							"    pm.environment.set(\"maria_token\", json.token);",
+							"    console.log(\"maria_token set to\", json.token);",
+							"} else {",
+							"    console.error(\"No token in login response\");",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"maria@maria.com\",\n  \"password\": \"12345678\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/login",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "2. Ver tomos - todos (Maria)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/public/tomos",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"public",
+						"tomos"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3. Ver tomos - mangas=1 (Maria)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/public/tomos?mangas=1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"public",
+						"tomos"
+					],
+					"query": [
+						{
+							"key": "mangas",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "4. Ver tomos - mangas=2 (Maria)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/public/tomos?mangas=2",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"public",
+						"tomos"
+					],
+					"query": [
+						{
+							"key": "mangas",
+							"value": "2"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "5. Ver tomos - editorial=1 (Maria)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/public/tomos?editorials=1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"public",
+						"tomos"
+					],
+					"query": [
+						{
+							"key": "editorials",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "6. Ver tomos - editorial=3 (Maria)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/public/tomos?editorials=3",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"public",
+						"tomos"
+					],
+					"query": [
+						{
+							"key": "editorials",
+							"value": "3"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "7. Ver facturas Maria",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const json = pm.response.json();",
+							"if (Array.isArray(json) && json.length > 0) {",
+							"    pm.environment.set(\"maria_factura_id\", json[0].id);",
+							"    console.log(\"maria_factura_id set to\", json[0].id);",
+							"} else {",
+							"    console.warn(\"No hay facturas para Maria\");",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{maria_token}}"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/mis-facturas",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"mis-facturas"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "8. Ver detalle factura Maria",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{maria_token}}"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/mis-facturas/{{maria_factura_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"mis-facturas",
+						"{{maria_factura_id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "9. Nueva compra Maria",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const json = pm.response.json();",
+							"if (json.factura_id) {",
+							"    pm.environment.set(\"maria_new_factura_id\", json.factura_id);",
+							"    console.log(\"maria_new_factura_id set to\", json.factura_id);",
+							"} else {",
+							"    console.error(\"No factura_id in checkout response for Maria\");",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{maria_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"items\": [\n    {\n      \"id\": 1,\n      \"quantity\": 1\n    },\n    {\n      \"id\": 2,\n      \"quantity\": 1\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/checkout",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"checkout"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "10. Registrar otro usuario",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"nombre\": \"otro usuario\",\n  \"email\": \"otro@user.com\",\n  \"password\": \"12345678\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/register",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"register"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "11. Login - Otro usuario",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const json = pm.response.json();",
+							"if (json.token) {",
+							"    pm.environment.set(\"otro_token\", json.token);",
+							"    console.log(\"otro_token set to\", json.token);",
+							"} else {",
+							"    console.error(\"No token en login de usuario nuevo\");",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"otro@user.com\",\n  \"password\": \"12345678\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/login",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "12. Ver tomos - todos (Otro)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/public/tomos",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"public",
+						"tomos"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "13. Ver tomos - mangas=1 (Otro)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/public/tomos?mangas=1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"public",
+						"tomos"
+					],
+					"query": [
+						{
+							"key": "mangas",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "14. Ver tomos - mangas=2 (Otro)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/public/tomos?mangas=2",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"public",
+						"tomos"
+					],
+					"query": [
+						{
+							"key": "mangas",
+							"value": "2"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "15. Ver tomos - editorial=1 (Otro)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/public/tomos?editorials=1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"public",
+						"tomos"
+					],
+					"query": [
+						{
+							"key": "editorials",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "16. Ver tomos - editorial=3 (Otro)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/public/tomos?editorials=3",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"public",
+						"tomos"
+					],
+					"query": [
+						{
+							"key": "editorials",
+							"value": "3"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "17. Nueva compra Otro usuario",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const json = pm.response.json();",
+							"if (json.factura_id) {",
+							"    pm.environment.set(\"otro_factura_id\", json.factura_id);",
+							"    console.log(\"otro_factura_id set to\", json.factura_id);",
+							"} else {",
+							"    console.error(\"No factura_id in checkout response for Otro\");",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{otro_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"items\": [\n    {\n      \"id\": 3,\n      \"quantity\": 1\n    },\n    {\n      \"id\": 4,\n      \"quantity\": 1\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/checkout",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"checkout"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "18. Ver detalle factura Otro usuario",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{otro_token}}"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/mis-facturas/{{otro_factura_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"mis-facturas",
+						"{{otro_factura_id}}"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://mangakaappweb-production.up.railway.app"
+		},
+		{
+			"key": "maria_token",
+			"value": ""
+		},
+		{
+			"key": "maria_factura_id",
+			"value": ""
+		},
+		{
+			"key": "maria_new_factura_id",
+			"value": ""
+		},
+		{
+			"key": "otro_token",
+			"value": ""
+		},
+		{
+			"key": "otro_factura_id",
+			"value": ""
+		}
+	]
+}
