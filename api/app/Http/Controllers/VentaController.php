@@ -149,9 +149,4 @@ class VentaController extends Controller
         return response()->json($payload);
     }
 
-    /**
-     * GET /api/mis-facturas/{factura}/pdf
-     * Genera y devuelve la factura en PDF para descarga.
-     */
-
 }

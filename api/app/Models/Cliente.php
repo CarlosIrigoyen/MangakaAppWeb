@@ -10,8 +10,21 @@ class Cliente extends Authenticatable
 {
     use HasApiTokens, Notifiable;
 
-    protected $fillable = ['nombre', 'email', 'password','direccion'];
+    protected $fillable = [
+        'nombre',
+        'email',
+        'password',
+        'direccion',
+    ];
 
-    // Opcional: ocultar campos sensibles en las respuestas JSON
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    // Relación con facturas
+    public function facturas()
+    {
+        return $this->hasMany(Factura::class);
+    }
 }
