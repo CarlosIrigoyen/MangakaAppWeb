@@ -118,6 +118,10 @@ class FacturaController extends Controller
             'id'       => $factura->id,
             'numero'   => $factura->numero,
             'fecha'    => $factura->created_at->toDateTimeString(),
+            'cliente'  => [
+                'nombre'   => $factura->cliente->nombre,
+                'apellido' => $factura->cliente->apellido,
+            ],
             'detalles' => $factura->detalles->map(fn($d) => [
                 'tomo_id'         => $d->tomo_id,
                 'titulo'          => $d->tomo->manga->titulo,
