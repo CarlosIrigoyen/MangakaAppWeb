@@ -1,52 +1,58 @@
 <?php
-// routes/api.php
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\TomoController;
-use App\Http\Controllers\VentaController;
 use App\Http\Controllers\FacturaController;
 use App\Http\Controllers\MercadoPagoController;
-use App\Models\Autor;
-use App\Models\Manga;
-use App\Models\Editorial;
-use App\Models\Factura;
-use App\Models\Tomo;
 
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+*/
+
+// --- RUTAS PÚBLICAS ---
+// Registro y login de cliente
 Route::post('/register', [ClienteController::class, 'store']);
 Route::post('/login',    [ClienteController::class, 'login']);
 
-// --- RUTAS PÚBLICAS (ACCESIBLES SIN AUTENTICACIÓN) ---
-
+// Listado público de tomos y filtros
 Route::get('public/tomos', [TomoController::class, 'indexPublic']);
 Route::get('filters', function () {
-    $authors    = Autor::select('id','nombre','apellido')->get();
-    $mangas     = Manga::select('id','titulo')->get();
-    $editorials = Editorial::select('id','nombre')->get();
+    $authors    = \App\Models\Autor::select('id','nombre','apellido')->get();
+    $mangas     = \App\Models\Manga::select('id','titulo')->get();
+    $editorials = \App\Models\Editorial::select('id','nombre')->get();
     $languages  = ['Español','Inglés','Japonés'];
-    $minPrice   = Tomo::min('precio');
-    $maxPrice   = Tomo::max('precio');
+    $minPrice   = \App\Models\Tomo::min('precio');
+    $maxPrice   = \App\Models\Tomo::max('precio');
     return response()->json(compact('authors','languages','mangas','editorials','minPrice','maxPrice'));
 });
 
-// webhook público de MercadoPago (ngrok debe apuntar aquí)
+// Webhook público de MercadoPago
 Route::post('mercadopago/webhook', [MercadoPagoController::class, 'webhook']);
 
-// --- RUTAS PROTEGIDAS (REQUIEREN AUTENTICACIÓN CON SANCTUM) ---
+// --- RUTAS PROTEGIDAS (Sanctum) ---
 Route::middleware('auth:sanctum')->group(function () {
+    // Logout y usuario actual
     Route::post('/logout', [ClienteController::class, 'logout']);
     Route::get('/me', function (Request $request) {
         return response()->json($request->user());
     });
 
-    Route::prefix('ventas')->group(function () {
-        Route::get('mis-facturas',          [FacturaController::class, 'index'])
-             ->name('mis-facturas.index');
-        Route::get('mis-facturas/{factura}', [FacturaController::class, 'show'])
-             ->name('mis-facturas.show');
-    });
+    // Facturación “directa” (sin integración activa de MercadoPago)
+    Route::prefix('orders')->group(function () {
+        // 1) Crear factura impaga + detalles + decrementar stock
+        Route::post('checkout', [FacturaController::class, 'checkout'])
+             ->name('orders.checkout');
 
-    // Crear preferencia de pago (requiere auth)
-    Route::post('mercadopago/preference', [MercadoPagoController::class, 'createPreference']);
+        // 2) Listar facturas del cliente
+        Route::get('invoices', [FacturaController::class, 'index'])
+             ->name('orders.invoices.index');
+
+        // 3) Mostrar detalle de una factura
+        Route::get('invoices/{factura}', [FacturaController::class, 'show'])
+             ->name('orders.invoices.show');
+    });
 });
