@@ -52,12 +52,11 @@ class MercadoPagoController extends Controller
         $preferenceData = [
             'items' => $items,
             'back_urls' => [
-                 'success' => 'https://mangakaappwebfront-production.up.railway.app',
+                 'success' => 'https://mangakaappwebfront-production.up.railway.app/',
                  'failure' => 'https://mangakaapp.loca.lt/checkout/failure',
                  'pending' => 'https://mangakaapp.loca.lt/checkout/pending',
             ],
             'auto_return'      => 'approved',
-            // Notification URL hardcodeada al túnel de Ngrok
             'notification_url'   => 'https://mangakaappweb-production.up.railway.app/api/mercadopago/webhook',
             'external_reference' => (string) $factura->id,
         ];

@@ -32,6 +32,7 @@ Route::get('filters', function () {
 
 // Webhook público de MercadoPago
 Route::post('mercadopago/webhook', [MercadoPagoController::class, 'webhook']);
+Route::post('mercadopago/preference', [MercadoPagoController::class, 'createPreference']);
 
 // --- RUTAS PROTEGIDAS (Sanctum) ---
 Route::middleware('auth:sanctum')->group(function () {
