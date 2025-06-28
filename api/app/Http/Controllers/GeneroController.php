@@ -26,25 +26,56 @@ class GeneroController extends Controller
     /**
      * Almacena un nuevo género o reactiva uno existente.
      */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'nombre' => 'required|string|max:255',
-        ]);
+public function store(Request $request)
+{
+    // Validamos que recibimos al menos una cadena de texto
+    $validated = $request->validate([
+        'nombre' => 'required|string|max:1000', // permitimos una longitud mayor por la lista
+    ]);
 
-        // Si existe pero inactivo, reactivarlo
-        $g = Genero::where('nombre', $validated['nombre'])->first();
-        if ($g) {
-            $g->activo = true;
-            $g->save();
-        } else {
-            Genero::create($validated + ['activo' => true]);
-        }
+    // Separa por comas y limpia espacios en blanco
+    $nombres = array_filter(array_map('trim', explode(',', $validated['nombre'])));
 
-        return redirect()
-            ->route('generos.index', ['status' => 'activo'])
-            ->with('success', 'Género creado/reactivado exitosamente.');
+    if (empty($nombres)) {
+        return back()
+            ->withErrors(['nombre' => 'Debes indicar al menos un nombre válido.'])
+            ->withInput();
     }
+
+    $creados = $reactivados = [];
+
+    foreach ($nombres as $nombre) {
+        // Comprueba existencia (activo o inactivo)
+        $g = Genero::where('nombre', $nombre)->first();
+
+        if ($g) {
+            if (! $g->activo) {
+                $g->activo = true;
+                $g->save();
+                $reactivados[] = $nombre;
+            }
+        } else {
+            Genero::create([
+                'nombre' => $nombre,
+                'activo' => true,
+            ]);
+            $creados[] = $nombre;
+        }
+    }
+
+    // Construimos un mensaje de feedback
+    $mensajes = [];
+    if ($creados) {
+        $mensajes[] = "Géneros creados: " . implode(', ', $creados);
+    }
+    if ($reactivados) {
+        $mensajes[] = "Géneros reactivados: " . implode(', ', $reactivados);
+    }
+
+    return redirect()
+        ->route('generos.index', ['status' => 'activo'])
+        ->with('success', implode('. ', $mensajes) . '.');
+}
 
     /**
      * Retorna JSON para el formulario de edición.
