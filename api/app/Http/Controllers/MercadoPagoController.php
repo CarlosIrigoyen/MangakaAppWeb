@@ -72,7 +72,7 @@ class MercadoPagoController extends Controller
              'pending' => 'https://mangakaapp.loca.lt/checkout/pending',
         ],
        // 'auto_return'        => 'approved',
-        'notification_url'   => 'https://mangakaappweb-production.up.railway.app/login/api/mercadopago/webhook',
+        'notification_url'   => 'https://mangakaappweb-production.up.railway.app/login/mercadopago/webhook',
         'external_reference' => (string) $factura->id,
     ];
 
