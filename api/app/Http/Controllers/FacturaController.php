@@ -90,6 +90,7 @@ class FacturaController extends Controller
                            ->where('pagado', true)
                            ->with('detalles')
                            ->orderBy('created_at', 'desc')
+                           ->limit(1) // ← Asegurate de esto
                            ->get();
 
         return response()->json($facturas->map(function($f) {
