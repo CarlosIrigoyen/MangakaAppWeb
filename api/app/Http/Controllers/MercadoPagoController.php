@@ -67,12 +67,12 @@ class MercadoPagoController extends Controller
     $preferenceData = [
         'items' => $items,
         'back_urls' => [
-             'success' => 'https://2rl5a708bsjj.share.zrok.io/facturas',
+             'success' => 'https://ji7aa1w3wxl5.share.zrok.io/facturas',
              'failure' => 'https://mangakaapp.loca.lt/checkout/failure',
              'pending' => 'https://mangakaapp.loca.lt/checkout/pending',
         ],
         'auto_return'        => 'approved',
-        'notification_url'   => 'https://f183-2802-8012-d0b1-3e00-1639-1c18-8036-ab0e.ngrok-free.app/api/mercadopago/webhook',
+        'notification_url'   => 'https://8e81-186-143-161-5.ngrok-free.app/api/mercadopago/webhook',
         'external_reference' => (string) $factura->id,
     ];
 
