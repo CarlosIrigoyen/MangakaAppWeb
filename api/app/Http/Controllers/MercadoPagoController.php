@@ -14,15 +14,12 @@ use App\Models\DetalleFactura;
 
 class MercadoPagoController extends Controller
 {
-    public function __construct()
-    {
-        MercadoPagoConfig::setAccessToken(env('MP_ACCESS_TOKEN'));
-    }
+
 
     public function createPreference(Request $request)
     {
         Log::info("📥 Recibido request de React (productos): " . json_encode($request->all()));
-
+        MercadoPagoConfig::setAccessToken(env('MP_ACCESS_TOKEN'));
         // Validamos solo los productos, el cliente siempre es 1 en pruebas
         $request->validate([
             'productos'                  => 'required|array|min:1',
