@@ -21,15 +21,15 @@ class MercadoPagoController extends Controller
     }
     public function createPreference(Request $request)
 {
-    Log::info("📥 [MP] Payload recibido:", $request->all());
+    Log::info("📥 Recibido request de react: " . json_encode($request->all()));
 
     $request->validate([
-        'cliente_id'               => 'required|exists:clientes,id',
-        'productos'                => 'required|array|min:1',
-        'productos.*.tomo_id'      => 'required|integer|exists:tomos,id',
-        'productos.*.titulo'       => 'required|string',
-        'productos.*.cantidad'     => 'required|integer|min:1',
-        'productos.*.precio_unitario'=> 'required|numeric|min:0',
+        'cliente_id' => 'required|exists:clientes,id',
+        'productos'  => 'required|array|min:1',
+        'productos.*.tomo_id'         => 'required|integer|exists:tomos,id',
+        'productos.*.titulo'          => 'required|string',
+        'productos.*.cantidad'        => 'required|integer|min:1',
+        'productos.*.precio_unitario' => 'required|numeric|min:0',
     ]);
 
     $clienteId = $request->input('cliente_id');
@@ -48,6 +48,7 @@ class MercadoPagoController extends Controller
             'unit_price'  => (float) $prod['precio_unitario'],
             'currency_id' => 'ARS',
         ];
+
         DetalleFactura::create([
             'factura_id'      => $factura->id,
             'tomo_id'         => $prod['tomo_id'],
@@ -58,47 +59,38 @@ class MercadoPagoController extends Controller
     }
 
     $preferenceData = [
-        'items'              => $items,
-        'back_urls'          => [
+        'items' => $items,
+        'back_urls' => [
             'success' => 'https://mangakaappwebfront-production.up.railway.app/facturas',
             'failure' => 'https://mangakaapp.loca.lt/checkout/failure',
             'pending' => 'https://mangakaapp.loca.lt/checkout/pending',
         ],
         'auto_return'        => 'approved',
-        'notification_url'   => 'https://mangakaappweb-production.up.railway.app/api/mercadopago/webhook',
+        'notification_url'   => 'https://mangakaappweb-production.up.railway.app/login/api/mercadopago/webhook',
         'external_reference' => (string) $factura->id,
     ];
 
-    Log::info("[MP] preferenceData:", $preferenceData);
-
     try {
         $preference = (new PreferenceClient())->create($preferenceData);
-        Log::info("[MP] Preference creada:", [
-            'id'         => $preference->id,
-            'init_point' => $preference->init_point,
-        ]);
 
         return response()->json([
-            'init_point' => $preference->init_point,
-            'id'         => $preference->id,
+            'init_point'         => $preference->init_point,
+            'id'                 => $preference->id,
+            'external_reference' => $preference->external_reference,
         ]);
+
     } catch (MPApiException $e) {
-        // Obtén el contenido crudo de la respuesta (si existe)
-        $apiResp = $e->getApiResponse();
-        $errorContent = $apiResp
-            ? $apiResp->getContent()
-            : $e->getMessage();
-
-        // Loguea en error
-        Log::error("[MP] Error creando preference:", [
-            'message' => $e->getMessage(),
-            'api_errors' => $errorContent,
-        ]);
-
-        // Borra la factura para no dejar datos huérfanos
+        // 🧹 Eliminar la factura si falla
         $factura->delete();
 
-        // Devuelve el error completo al front
+        // 📋 Capturar el error con fallback
+        $errorContent = method_exists($e, 'getApiResponse') && $e->getApiResponse()
+            ? $e->getApiResponse()->getContent()
+            : $e->getMessage();
+
+        // 🪵 Log del error real
+        Log::error('[MP] Error creando preference: ' . json_encode($errorContent));
+
         return response()->json([
             'message' => 'Error creando la preferencia de pago.',
             'errors'  => $errorContent,
