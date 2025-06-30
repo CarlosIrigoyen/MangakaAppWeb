@@ -18,16 +18,7 @@ use Illuminate\Support\Facades\Artisan;
 // Registro y login de cliente
 Route::post('/register', [ClienteController::class, 'store']);
 Route::post('/login',    [ClienteController::class, 'login']);
-Route::get('/clear-config', function () {
-    Artisan::call('config:clear');
-    Artisan::call('cache:clear');
-    return '✔ Config y cache limpiadas';
-});
-Route::get('/test-mp-token', function () {
-    return response()->json([
-        'token' => env('MP_ACCESS_TOKEN'),
-    ]);
-});
+
 
 // Listado público de tomos y filtros
 Route::get('public/tomos', [TomoController::class, 'indexPublic']);
