@@ -8,6 +8,7 @@ use App\Http\Controllers\MangaController;
 use App\Http\Controllers\GeneroController;
 use App\Http\Controllers\TomoController;
 use Illuminate\Auth\Events\Login;
+use App\Http\Controllers\PayPalController;
 
 
 /*
@@ -24,7 +25,8 @@ Route::middleware('guest')->group(function () {
 });
 
 
-
+Route::get('/paypal/success', [PayPalController::class,'success']);
+Route::get('/paypal/cancel',  [PayPalController::class,'cancel']);
 /*
 |--------------------------------------------------------------------------
 | Rutas protegidas por autenticación

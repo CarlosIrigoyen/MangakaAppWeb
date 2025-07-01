@@ -7,7 +7,7 @@ use App\Http\Controllers\TomoController;
 use App\Http\Controllers\FacturaController;
 use App\Http\Controllers\MercadoPagoController;
 use Illuminate\Support\Facades\Artisan;
-
+use App\Http\Controllers\PayPalController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -58,4 +58,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('invoices/{factura}', [FacturaController::class, 'show'])
              ->name('orders.invoices.show');
     });
+    Route::middleware('auth:sanctum')
+    ->post('/paypal/create-order', [PayPalController::class,'createOrder']);
+
 });
