@@ -33,7 +33,6 @@ class MercadoPagoController extends Controller
             'failure' => 'https://www.youtube.com',
             'pending' => 'https://www.3djuegos.com',
         ],
-        'auto_return' => 'approved',
     ];
 
     $preference = $preferenceClient->create($preferenceData);
