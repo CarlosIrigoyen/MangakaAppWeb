@@ -15,64 +15,64 @@ use App\Models\DetalleFactura;
 class MercadoPagoController extends Controller
 {
 
-
-    public function createPreference(Request $request)
+       public function createPreference(Request $request)
     {
-        Log::info("📥 Recibido request de React (productos): " . json_encode($request->all()));
-        MercadoPagoConfig::setAccessToken(env('MP_ACCESS_TOKEN'));
-        // Validamos solo los productos, el cliente siempre es 1 en pruebas
+        Log::info('▶▶ Llego a createPreference, payload:', $request->all());
+
+        // Validación del array de productos
         $request->validate([
-            'productos'                  => 'required|array|min:1',
-            'productos.*.tomo_id'        => 'required|integer|exists:tomos,id',
-            'productos.*.titulo'         => 'required|string',
-            'productos.*.cantidad'       => 'required|integer|min:1',
-            'productos.*.precio_unitario'=> 'required|numeric|min:0',
+            'productos'                   => 'required|array|min:1',
+            'productos.*.tomo_id'         => 'required|integer|exists:tomos,id',
+            'productos.*.titulo'          => 'required|string',
+            'productos.*.cantidad'        => 'required|integer|min:1',
+            'productos.*.precio_unitario' => 'required|numeric|min:0',
         ]);
 
-        // Para pruebas: cliente fijo
         $clienteId = 1;
+        Log::info("▶▶ Usando cliente_id fijo: {$clienteId}");
 
-        // Creamos la factura en estado no pagado
+        // Crea factura
         $factura = Factura::create([
-            'numero'     => Str::uuid()->toString(),
+            'numero'     => Str::uuid(),
             'cliente_id' => $clienteId,
             'pagado'     => false,
         ]);
+        Log::info("▶▶ Factura creada ID {$factura->id}");
 
-        // Preparamos los items y guardamos detalles
+        // Prepara items y detalles
         $items = [];
-        foreach ($request->input('productos') as $prod) {
+        foreach ($request->productos as $p) {
             $items[] = [
-                'title'       => $prod['titulo'],
-                'quantity'    => (int) $prod['cantidad'],
-                'unit_price'  => (float) $prod['precio_unitario'],
+                'title'       => $p['titulo'],
+                'quantity'    => (int) $p['cantidad'],
+                'unit_price'  => (float) $p['precio_unitario'],
                 'currency_id' => 'ARS',
             ];
-
             DetalleFactura::create([
                 'factura_id'      => $factura->id,
-                'tomo_id'         => $prod['tomo_id'],
-                'cantidad'        => (int) $prod['cantidad'],
-                'precio_unitario' => (float) $prod['precio_unitario'],
-                'subtotal'        => (float) $prod['cantidad'] * $prod['precio_unitario'],
+                'tomo_id'         => $p['tomo_id'],
+                'cantidad'        => $p['cantidad'],
+                'precio_unitario' => $p['precio_unitario'],
+                'subtotal'        => $p['cantidad'] * $p['precio_unitario'],
             ]);
         }
 
-        // Configuramos la preferencia de pago
         $preferenceData = [
-            'items' => $items,
-            'back_urls' => [
-                'success' => env('APP_FRONT_URL').'/facturas',
-                'failure' => env('APP_FRONT_URL').'/checkout/failure',
-                'pending' => env('APP_FRONT_URL').'/checkout/pending',
+            'items'               => $items,
+            'back_urls'           => [
+                'success' => 'https://www.google.com',
+                'failure' => 'https://www.google.com',
+                'pending' => 'https://www.google.com',
             ],
-            'auto_return'        => 'approved',
-            'notification_url'   => env('APP_API_URL').'/mercadopago/webhook',
-            'external_reference' => (string) $factura->id,
+            'auto_return'         => 'approved',
+            'notification_url'    => env('APP_API_URL').'/mercadopago/webhook',
+            'external_reference'  => (string) $factura->id,
         ];
+        Log::debug('▶▶ preferenceData:', $preferenceData);
 
         try {
             $preference = (new PreferenceClient())->create($preferenceData);
+            Log::info('✅ Preference creada, init_point: '.$preference->init_point);
 
             return response()->json([
                 'init_point'         => $preference->init_point,
@@ -80,19 +80,17 @@ class MercadoPagoController extends Controller
                 'external_reference' => $preference->external_reference,
             ]);
         } catch (MPApiException $e) {
-            // Si falla, eliminamos la factura de prueba
+            // Registro completo de la excepción
+            Log::error('[MP] Exception creando preference: '.$e->__toString());
             $factura->delete();
-            $errorContent = method_exists($e, 'getApiResponse') && $e->getApiResponse()
-                ? $e->getApiResponse()->getContent()
-                : $e->getMessage();
-            Log::error('[MP] Error creando preference: ' . json_encode($errorContent));
 
             return response()->json([
                 'message' => 'Error creando la preferencia de pago.',
-                'errors'  => $errorContent,
+                'errors'  => $e->getMessage(),
             ], 500);
         }
     }
+
 
     public function webhook(Request $request)
     {
