@@ -15,18 +15,34 @@ use App\Models\DetalleFactura;
 class MercadoPagoController extends Controller
 {
 
-       public function createPreference(Request $request)
-    {
-         Log::info('▶▶ Llego a createPreference, payload:', $request->all());
+   public function createPreference(Request $request)
+{
+    MercadoPagoConfig::setAccessToken(env('MERCADO_PAGO_ACCESS_TOKEN'));
 
-         return response()->json([
-        'init_point' => 'https://www.mercadopago.com.ar/checkout/v1/redirect?preference-id=test123',
-        'id' => 'test123',
-        'external_reference' => '999'
+    $preferenceClient = new PreferenceClient();
+
+    $preferenceData = [
+        'items' => [[
+            'title' => 'Producto de prueba',
+            'quantity' => 1,
+            'unit_price' => 1000,
+            'currency_id' => 'ARS',
+        ]],
+        'back_urls' => [
+            'success' => env('APP_FRONT_URL') . '/success',
+            'failure' => env('APP_FRONT_URL') . '/failure',
+            'pending' => env('APP_FRONT_URL') . '/pending',
+        ],
+        'auto_return' => 'approved',
+        'notification_url' => env('APP_API_URL') . '/mercadopago/webhook',
+    ];
+
+    $preference = $preferenceClient->create($preferenceData);
+
+    return response()->json([
+        'init_point' => $preference->init_point,
     ]);
-
-    }
-
+}
 
     public function webhook(Request $request)
     {
