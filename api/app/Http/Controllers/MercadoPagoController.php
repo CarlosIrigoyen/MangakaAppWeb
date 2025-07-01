@@ -23,19 +23,20 @@ class MercadoPagoController extends Controller
     public function createPreference(Request $request)
     {
         // Logueo del request para debugging
-        Log::info("📥 Recibido request de react: " . json_encode($request->all()));
+        Log::info("📥 Recibido request de React: " . json_encode($request->all()));
 
-        // Validación de los datos recibidos (sin cliente_id)
+        // Validación incluyendo cliente_id
         $request->validate([
-            'productos'               => 'required|array|min:1',
-            'productos.*.tomo_id'     => 'required|integer|exists:tomos,id',
-            'productos.*.titulo'      => 'required|string',
-            'productos.*.cantidad'    => 'required|integer|min:1',
+            'cliente_id'               => 'required|integer|exists:clientes,id',
+            'productos'                => 'required|array|min:1',
+            'productos.*.tomo_id'      => 'required|integer|exists:tomos,id',
+            'productos.*.titulo'       => 'required|string',
+            'productos.*.cantidad'     => 'required|integer|min:1',
             'productos.*.precio_unitario' => 'required|numeric|min:0',
         ]);
 
-        // Fuerza el cliente_id a 1 sin importar lo que venga en el payload
-        $clienteId = 1;
+        // Obtenemos el cliente_id enviado desde el frontend
+        $clienteId = $request->input('cliente_id');
 
         // Creamos la factura principal
         $factura = Factura::create([
