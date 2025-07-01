@@ -30,11 +30,11 @@ class MercadoPagoController extends Controller
         ]],
         'back_urls' => [
             'success' =>'https://www.google.com',
-            'failure' => 'https://www.youtube.com/',
-            'pending' => 'https://www.3djuegos.com/',
+            'failure' => 'https://www.youtube.com',
+            'pending' => 'https://www.3djuegos.com',
         ],
         'auto_return' => 'approved',
-        'notification_url' => env('APP_API_URL') . '/mercadopago/webhook',
+        'notification_url' => 'https://mangakaappweb-production.up.railway.app/api/mercadopago/webhook',
     ];
 
     $preference = $preferenceClient->create($preferenceData);
