@@ -17,7 +17,7 @@ class MercadoPagoController extends Controller
 
    public function createPreference(Request $request)
 {
-    MercadoPagoConfig::setAccessToken(env('MERCADO_PAGO_ACCESS_TOKEN'));
+    MercadoPagoConfig::setAccessToken(env('MP_ACCESS_TOKEN'));
 
     $preferenceClient = new PreferenceClient();
 
@@ -34,6 +34,7 @@ class MercadoPagoController extends Controller
             'pending' => 'https://www.3djuegos.com',
         ],
         'auto_return' => 'approved',
+        'notification_url' => 'https://mangakaappweb-production.up.railway.app/api/mercadopago/webhook',
     ];
 
     $preference = $preferenceClient->create($preferenceData);
