@@ -18,7 +18,8 @@ class MercadoPagoController extends Controller
        public function createPreference(Request $request)
     {
         Log::info('▶▶ Llego a createPreference, payload:', $request->all());
-
+            // Retorna una respuesta JSON válida, aunque sea vacía
+       return response()->json(['message' => 'Endpoint funcionando']);
 
     }
 
