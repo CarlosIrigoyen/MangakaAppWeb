@@ -17,9 +17,13 @@ class MercadoPagoController extends Controller
 
        public function createPreference(Request $request)
     {
-        Log::info('▶▶ Llego a createPreference, payload:', $request->all());
-            // Retorna una respuesta JSON válida, aunque sea vacía
-       return response()->json(['message' => 'Endpoint funcionando']);
+         Log::info('▶▶ Llego a createPreference, payload:', $request->all());
+
+         return response()->json([
+        'init_point' => 'https://www.mercadopago.com.ar/checkout/v1/redirect?preference-id=test123',
+        'id' => 'test123',
+        'external_reference' => '999'
+    ]);
 
     }
 
