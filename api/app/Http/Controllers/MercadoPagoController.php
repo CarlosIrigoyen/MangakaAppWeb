@@ -29,9 +29,9 @@ class MercadoPagoController extends Controller
             'currency_id' => 'ARS',
         ]],
         'back_urls' => [
-            'success' => env('APP_FRONT_URL') . '/success',
-            'failure' => env('APP_FRONT_URL') . '/failure',
-            'pending' => env('APP_FRONT_URL') . '/pending',
+            'success' =>'https://www.google.com',
+            'failure' => 'https://www.youtube.com/',
+            'pending' => 'https://www.3djuegos.com/',
         ],
         'auto_return' => 'approved',
         'notification_url' => env('APP_API_URL') . '/mercadopago/webhook',
