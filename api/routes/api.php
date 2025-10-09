@@ -26,30 +26,36 @@ Route::post('/login',    [ClienteController::class, 'login']);
 
 // Listado público de tomos y filtros
 Route::get('public/tomos', [TomoController::class, 'indexPublic']);
+
 Route::get('filters', function () {
-    // Autores que tienen mangas con al menos un tomo
-    $authors = Autor::whereHas('mangas.tomos')
-        ->select('id', 'nombre', 'apellido')
-        ->get();
+    // 1️⃣ Traemos datos base
+    $authors    = Autor::select('id','nombre','apellido')->with('mangas')->get();
+    $mangas     = Manga::select('id','titulo','editorial_id')->withCount('tomos')->get();
+    $editorials = Editorial::select('id','nombre')->withCount('tomos')->get();
+    $languages  = ['Español','Inglés','Japonés'];
+    $minPrice   = Tomo::min('precio');
+    $maxPrice   = Tomo::max('precio');
 
-    // Mangas que tienen al menos un tomo
-    $mangas = Manga::whereHas('tomos')
-        ->select('id', 'titulo')
-        ->get();
+    // 2️⃣ Filtramos autores: deben tener al menos un manga con tomos
+    $authors = $authors->filter(function ($autor) {
+        // Devuelve true si al menos uno de los mangas del autor tiene tomos
+        return $autor->mangas->some(function ($manga) {
+            return $manga->tomos()->exists();
+        });
+    })->values();
 
-    // Editoriales que tienen al menos un tomo
-    $editorials = Editorial::whereHas('tomos')
-        ->select('id', 'nombre')
-        ->get();
+    // 3️⃣ Filtramos mangas: deben tener al menos un tomo
+    $mangas = $mangas->filter(function ($manga) {
+        return $manga->tomos_count > 0;
+    })->values();
 
-    // Idiomas fijos
-    $languages = ['Español', 'Inglés', 'Japonés'];
+    // 4️⃣ Filtramos editoriales: deben tener al menos un tomo
+    $editorials = $editorials->filter(function ($editorial) {
+        return $editorial->tomos_count > 0;
+    })->values();
 
-    // Precio mínimo y máximo
-    $minPrice = Tomo::min('precio');
-    $maxPrice = Tomo::max('precio');
-
-    return response()->json(compact('authors', 'languages', 'mangas', 'editorials', 'minPrice', 'maxPrice'));
+    // 5️⃣ Devolvemos todo igual que antes (sin romper tu frontend)
+    return response()->json(compact('authors','languages','mangas','editorials','minPrice','maxPrice'));
 });
 // Webhook público de MercadoPago
 Route::post('mercadopago/webhook', [MercadoPagoController::class, 'webhook']);
