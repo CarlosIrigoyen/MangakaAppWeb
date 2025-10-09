@@ -8,6 +8,10 @@ use App\Http\Controllers\FacturaController;
 use App\Http\Controllers\MercadoPagoController;
 use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\PayPalController;
+use App\Models\Autor;
+use App\Models\Manga;
+use App\Models\Editorial;
+use App\Models\Tomo;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -23,15 +27,30 @@ Route::post('/login',    [ClienteController::class, 'login']);
 // Listado público de tomos y filtros
 Route::get('public/tomos', [TomoController::class, 'indexPublic']);
 Route::get('filters', function () {
-    $authors    = \App\Models\Autor::select('id','nombre','apellido')->get();
-    $mangas     = \App\Models\Manga::select('id','titulo')->get();
-    $editorials = \App\Models\Editorial::select('id','nombre')->get();
-    $languages  = ['Español','Inglés','Japonés'];
-    $minPrice   = \App\Models\Tomo::min('precio');
-    $maxPrice   = \App\Models\Tomo::max('precio');
-    return response()->json(compact('authors','languages','mangas','editorials','minPrice','maxPrice'));
-});
+    // Autores que tienen mangas con al menos un tomo
+    $authors = Autor::whereHas('mangas.tomos')
+        ->select('id', 'nombre', 'apellido')
+        ->get();
 
+    // Mangas que tienen al menos un tomo
+    $mangas = Manga::whereHas('tomos')
+        ->select('id', 'titulo')
+        ->get();
+
+    // Editoriales que tienen al menos un tomo
+    $editorials = Editorial::whereHas('tomos')
+        ->select('id', 'nombre')
+        ->get();
+
+    // Idiomas fijos
+    $languages = ['Español', 'Inglés', 'Japonés'];
+
+    // Precio mínimo y máximo
+    $minPrice = Tomo::min('precio');
+    $maxPrice = Tomo::max('precio');
+
+    return response()->json(compact('authors', 'languages', 'mangas', 'editorials', 'minPrice', 'maxPrice'));
+});
 // Webhook público de MercadoPago
 Route::post('mercadopago/webhook', [MercadoPagoController::class, 'webhook']);
 Route::post('mercadopago/preference', [MercadoPagoController::class, 'createPreference']);
