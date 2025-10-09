@@ -28,33 +28,12 @@ Route::post('/login',    [ClienteController::class, 'login']);
 Route::get('public/tomos', [TomoController::class, 'indexPublic']);
 
 Route::get('filters', function () {
-    // 1️⃣ Traemos datos base
-    $authors    = Autor::select('id','nombre','apellido')->with('mangas')->get();
-    $mangas     = Manga::select('id','titulo','editorial_id')->withCount('tomos')->get();
-    $editorials = Editorial::select('id','nombre')->withCount('tomos')->get();
-    $languages  = ['Español','Inglés','Japonés'];
-    $minPrice   = Tomo::min('precio');
-    $maxPrice   = Tomo::max('precio');
-
-    // 2️⃣ Filtramos autores: deben tener al menos un manga con tomos
-    $authors = $authors->filter(function ($autor) {
-        // Devuelve true si al menos uno de los mangas del autor tiene tomos
-        return $autor->mangas->some(function ($manga) {
-            return $manga->tomos()->exists();
-        });
-    })->values();
-
-    // 3️⃣ Filtramos mangas: deben tener al menos un tomo
-    $mangas = $mangas->filter(function ($manga) {
-        return $manga->tomos_count > 0;
-    })->values();
-
-    // 4️⃣ Filtramos editoriales: deben tener al menos un tomo
-    $editorials = $editorials->filter(function ($editorial) {
-        return $editorial->tomos_count > 0;
-    })->values();
-
-    // 5️⃣ Devolvemos todo igual que antes (sin romper tu frontend)
+    $authors = \App\Models\Autor::select('id','nombre','apellido')->get();
+    $mangas = \App\Models\Manga::select('id','titulo')->get();
+    $editorials = \App\Models\Editorial::select('id','nombre')->get();
+    $languages = ['Español','Inglés','Japonés'];
+    $minPrice = \App\Models\Tomo::min('precio');
+    $maxPrice = \App\Models\Tomo::max('precio');
     return response()->json(compact('authors','languages','mangas','editorials','minPrice','maxPrice'));
 });
 // Webhook público de MercadoPago
