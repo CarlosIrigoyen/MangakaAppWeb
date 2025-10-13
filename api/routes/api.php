@@ -60,7 +60,18 @@ Route::get('filters', function () {
         ->get();
 
     // === IDIOMAS Y RANGO DE PRECIOS ===
-    $languages = ['Español', 'Inglés', 'Japonés'];
+           // === IDIOMAS DE TOMOS ACTIVOS (MODIFICADO) ===
+        $languages = Tomo::where('activo', true)
+            ->distinct()
+            ->pluck('idioma')
+            ->filter() // Elimina valores null o vacíos
+            ->values()
+            ->toArray();
+
+        // Si no hay idiomas, usar array vacío en lugar de los fijos
+        if (empty($languages)) {
+            $languages = [];
+        }
     $minPrice = Tomo::where('activo', true)->min('precio');
     $maxPrice = Tomo::where('activo', true)->max('precio');
 
