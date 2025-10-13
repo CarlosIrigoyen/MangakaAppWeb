@@ -27,14 +27,44 @@ Route::post('/login',    [ClienteController::class, 'login']);
 // Listado público de tomos y filtros
 Route::get('public/tomos', [TomoController::class, 'indexPublic']);
 
+
 Route::get('filters', function () {
-    $authors = \App\Models\Autor::select('id','nombre','apellido')->get();
-    $mangas = \App\Models\Manga::select('id','titulo')->get();
-    $editorials = \App\Models\Editorial::select('id','nombre')->get();
-    $languages = ['Español','Inglés','Japonés'];
-    $minPrice = \App\Models\Tomo::min('precio');
-    $maxPrice = \App\Models\Tomo::max('precio');
-    return response()->json(compact('authors','languages','mangas','editorials','minPrice','maxPrice'));
+    // === AUTORES CON AL MENOS UN MANGA ACTIVO Y AL MENOS UN TOMO ACTIVO ===
+    $authors = Autor::select('id', 'nombre', 'apellido')
+        ->where('activo', true)
+        ->whereHas('mangas', function ($q) {
+            $q->where('activo', true)
+              ->whereHas('tomos', function ($q) {
+                  $q->where('activo', true);
+              });
+        })
+        ->get();
+
+    // === MANGAS CON AUTOR ACTIVO Y AL MENOS UN TOMO ACTIVO ===
+    $mangas = Manga::select('id', 'titulo')
+        ->where('activo', true)
+        ->whereHas('autor', function ($q) {
+            $q->where('activo', true);
+        })
+        ->whereHas('tomos', function ($q) {
+            $q->where('activo', true);
+        })
+        ->get();
+
+    // === EDITORIALES CON AL MENOS UN TOMO ACTIVO ===
+    $editorials = Editorial::select('id', 'nombre')
+        ->where('activo', true)
+        ->whereHas('tomos', function ($q) {
+            $q->where('activo', true);
+        })
+        ->get();
+
+    // === IDIOMAS Y RANGO DE PRECIOS ===
+    $languages = ['Español', 'Inglés', 'Japonés'];
+    $minPrice = Tomo::where('activo', true)->min('precio');
+    $maxPrice = Tomo::where('activo', true)->max('precio');
+
+    return response()->json(compact('authors', 'languages', 'mangas', 'editorials', 'minPrice', 'maxPrice'));
 });
 // Webhook público de MercadoPago
 Route::post('mercadopago/webhook', [MercadoPagoController::class, 'webhook']);

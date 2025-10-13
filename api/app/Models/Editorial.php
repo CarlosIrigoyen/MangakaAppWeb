@@ -36,13 +36,8 @@ class Editorial extends Model
     /**
      * Relación tomos ⇄ editoriales (muchos a muchos).
      */
-    public function tomos()
+       public function tomos()
     {
-        return $this->belongsToMany(
-            Tomo::class,
-            'tomo_editorial',
-            'editorial_id',
-            'tomo_id'
-        );
+        return $this->hasMany(Tomo::class, 'editorial_id');
     }
 }

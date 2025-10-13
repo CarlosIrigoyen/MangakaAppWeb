@@ -50,4 +50,8 @@ class Manga extends Model
             'genero_id'
         );
     }
+        public function tomos()
+    {
+        return $this->hasMany(Tomo::class, 'manga_id');
+    }
 }
