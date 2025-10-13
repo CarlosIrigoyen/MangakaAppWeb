@@ -27,4 +27,10 @@ class Cliente extends Authenticatable
     {
         return $this->hasMany(Factura::class);
     }
+
+    // AGREGAR ESTA RELACIÓN CON EL CARRITO
+    public function carritos()
+    {
+        return $this->hasMany(Carrito::class);
+    }
 }

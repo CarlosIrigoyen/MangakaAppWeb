@@ -7,6 +7,7 @@ use App\Http\Controllers\TomoController;
 use App\Http\Controllers\FacturaController;
 use App\Http\Controllers\MercadoPagoController;
 use Illuminate\Support\Facades\Artisan;
+use App\Http\Controllers\CarritoController; // ← AGREGAR
 use App\Http\Controllers\PayPalController;
 use App\Models\Autor;
 use App\Models\Manga;
@@ -103,6 +104,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('invoices/{factura}', [FacturaController::class, 'show'])
              ->name('orders.invoices.show');
     });
+    Route::post('/carrito/guardar', [CarritoController::class, 'guardarCarrito']);
+    Route::get('/carrito/obtener/{clienteId}', [CarritoController::class, 'obtenerCarrito']);
+    Route::delete('/carrito/limpiar/{clienteId}', [CarritoController::class, 'limpiarCarrito']);
     Route::middleware('auth:sanctum')
     ->post('/paypal/create-order', [PayPalController::class,'createOrder']);
 
