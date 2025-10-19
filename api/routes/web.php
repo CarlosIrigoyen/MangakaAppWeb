@@ -9,6 +9,7 @@ use App\Http\Controllers\GeneroController;
 use App\Http\Controllers\TomoController;
 use Illuminate\Auth\Events\Login;
 use App\Http\Controllers\PayPalController;
+use App\Http\Controllers\DashboardController;
 
 
 /*
@@ -37,9 +38,15 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
      ->group(function () {
 
     // Dashboard
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('/dashboard/estadisticas-generales', [DashboardController::class, 'getEstadisticasGenerales'])
+         ->name('dashboard.estadisticas-generales');
+    Route::get('/dashboard/ventas-mensuales', [DashboardController::class, 'getVentasMensuales'])
+         ->name('dashboard.ventas-mensuales');
+    Route::get('/dashboard/top-mangas', [DashboardController::class, 'getTopMangas'])
+         ->name('dashboard.top-mangas');
+
 
     // CRUD de entidades
     Route::resource('autores', AutorController::class);

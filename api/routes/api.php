@@ -8,6 +8,7 @@ use App\Http\Controllers\FacturaController;
 use App\Http\Controllers\MercadoPagoController;
 use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\CarritoController; // ← AGREGAR
+use App\Http\Controllers\FiltroController;
 use App\Http\Controllers\PayPalController;
 use App\Models\Autor;
 use App\Models\Manga;
@@ -29,55 +30,8 @@ Route::post('/login',    [ClienteController::class, 'login']);
 Route::get('public/tomos', [TomoController::class, 'indexPublic']);
 
 
-Route::get('filters', function () {
-    // === AUTORES CON AL MENOS UN MANGA ACTIVO Y AL MENOS UN TOMO ACTIVO ===
-    $authors = Autor::select('id', 'nombre', 'apellido')
-        ->where('activo', true)
-        ->whereHas('mangas', function ($q) {
-            $q->where('activo', true)
-              ->whereHas('tomos', function ($q) {
-                  $q->where('activo', true);
-              });
-        })
-        ->get();
-
-    // === MANGAS CON AUTOR ACTIVO Y AL MENOS UN TOMO ACTIVO ===
-    $mangas = Manga::select('id', 'titulo')
-        ->where('activo', true)
-        ->whereHas('autor', function ($q) {
-            $q->where('activo', true);
-        })
-        ->whereHas('tomos', function ($q) {
-            $q->where('activo', true);
-        })
-        ->get();
-
-    // === EDITORIALES CON AL MENOS UN TOMO ACTIVO ===
-    $editorials = Editorial::select('id', 'nombre')
-        ->where('activo', true)
-        ->whereHas('tomos', function ($q) {
-            $q->where('activo', true);
-        })
-        ->get();
-
-    // === IDIOMAS Y RANGO DE PRECIOS ===
-           // === IDIOMAS DE TOMOS ACTIVOS (MODIFICADO) ===
-        $languages = Tomo::where('activo', true)
-            ->distinct()
-            ->pluck('idioma')
-            ->filter() // Elimina valores null o vacíos
-            ->values()
-            ->toArray();
-
-        // Si no hay idiomas, usar array vacío en lugar de los fijos
-        if (empty($languages)) {
-            $languages = [];
-        }
-    $minPrice = Tomo::where('activo', true)->min('precio');
-    $maxPrice = Tomo::where('activo', true)->max('precio');
-
-    return response()->json(compact('authors', 'languages', 'mangas', 'editorials', 'minPrice', 'maxPrice'));
-});
+// Filtros - ahora usando el controlador
+Route::get('filters', [FiltroController::class, 'getFilters']);
 // Webhook público de MercadoPago
 Route::post('mercadopago/webhook', [MercadoPagoController::class, 'webhook']);
 Route::post('mercadopago/preference', [MercadoPagoController::class, 'createPreference']);
