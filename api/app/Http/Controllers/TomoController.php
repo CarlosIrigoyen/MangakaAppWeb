@@ -299,7 +299,7 @@ class TomoController extends Controller
     // api para obtener los tomos y mostrarlos en el front de react
     public function indexPublic(Request $request)
 {
-    $query = Tomo::with('manga', 'editorial', 'manga.autor', 'manga.generos');
+    $query = Tomo::with('manga', 'editorial', 'manga.autor','manga.dibujante''manga.generos');
 
     if ($request->filled('authors')) {
         $ids = explode(',', $request->get('authors'));
