@@ -17,9 +17,7 @@ class PayPalController extends Controller
 
     public function __construct()
     {
-        $this->paypalBaseUrl = env('PAYPAL_MODE') === 'live'
-            ? 'https://api.paypal.com'
-            : 'https://api.sandbox.paypal.com';
+        $this->paypalBaseUrl = 'https://api.sandbox.paypal.com';
 
         $this->clientId = env('PAYPAL_CLIENT_ID');
         $this->clientSecret = env('PAYPAL_CLIENT_SECRET');
