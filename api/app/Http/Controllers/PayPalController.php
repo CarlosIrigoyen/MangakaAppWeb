@@ -17,8 +17,9 @@ class PayPalController extends Controller
     private $clientId;
     private $clientSecret;
 
-      public function __construct()
+    public function __construct()
     {
+        // Forzar sandbox
         $this->paypalBaseUrl = 'https://api.sandbox.paypal.com';
         $this->clientId = env('PAYPAL_CLIENT_ID');
         $this->clientSecret = env('PAYPAL_CLIENT_SECRET');
@@ -49,7 +50,6 @@ class PayPalController extends Controller
     {
         Log::info("📥 createOrder PayPal: ", $request->all());
 
-        DB::beginTransaction();
         try {
             $request->validate([
                 'cliente_id' => 'required|integer|exists:clientes,id',
@@ -63,7 +63,7 @@ class PayPalController extends Controller
             $clienteId = $request->input('cliente_id');
             $productos = $request->input('productos', []);
 
-            // 1. Verificar stock
+            // 1. Verificar stock (sin crear factura todavía)
             foreach ($productos as $prod) {
                 $tomo = Tomo::find($prod['tomo_id']);
                 if (!$tomo || $tomo->stock < $prod['cantidad']) {
@@ -71,28 +71,13 @@ class PayPalController extends Controller
                 }
             }
 
-            // 2. Crear factura
-            $factura = Factura::create([
-                'numero' => 'PP-' . time() . '-' . Str::random(6),
-                'cliente_id' => $clienteId,
-                'pagado' => false,
-            ]);
-
-            // 3. Crear detalles de factura
+            // 2. Calcular total y preparar items
             $totalAmount = 0;
             $items = [];
 
             foreach ($productos as $prod) {
                 $subtotal = (float) $prod['cantidad'] * $prod['precio_unitario'];
                 $totalAmount += $subtotal;
-
-                DetalleFactura::create([
-                    'factura_id' => $factura->id,
-                    'tomo_id' => $prod['tomo_id'],
-                    'cantidad' => (int) $prod['cantidad'],
-                    'precio_unitario' => (float) $prod['precio_unitario'],
-                    'subtotal' => $subtotal,
-                ]);
 
                 $items[] = [
                     'name' => substr($prod['titulo'], 0, 127),
@@ -105,16 +90,19 @@ class PayPalController extends Controller
                 ];
             }
 
-            // 4. Crear orden en PayPal
+            // 3. Crear orden en PayPal con metadata
             $accessToken = $this->getAccessToken();
 
             $orderData = [
                 'intent' => 'CAPTURE',
                 'purchase_units' => [
                     [
-                        'reference_id' => 'factura_' . $factura->id,
+                        'reference_id' => 'cliente_' . $clienteId,
                         'description' => 'Compra de mangas - MangakaBaka',
-                        'invoice_id' => (string) $factura->id,
+                        'custom_id' => json_encode([
+                            'cliente_id' => $clienteId,
+                            'productos' => $productos
+                        ]),
                         'amount' => [
                             'currency_code' => 'USD',
                             'value' => number_format($totalAmount, 2, '.', ''),
@@ -155,21 +143,17 @@ class PayPalController extends Controller
                 throw new \Exception('No se encontró el link de aprobación');
             }
 
-            DB::commit();
-
-            Log::info("✅ Orden creada - Factura: {$factura->id}, PayPal: {$responseData['id']}");
+            Log::info("✅ Orden PayPal creada - ID: {$responseData['id']}");
 
             return response()->json([
                 'id' => $responseData['id'],
                 'status' => $responseData['status'],
                 'approve_url' => $approveLink['href'],
-                'factura_id' => (string) $factura->id,
                 'sandbox_mode' => true,
                 'message' => 'MODO PRUEBAS - No se realizará cargo real'
             ]);
 
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('❌ Error en createOrder: ' . $e->getMessage());
 
             return response()->json([
@@ -200,41 +184,57 @@ class PayPalController extends Controller
                 throw new \Exception('Error capturando orden: ' . $response->body());
             }
 
-            // Buscar la factura
-            $invoiceId = $captureData['purchase_units'][0]['invoice_id'] ?? null;
+            // Extraer metadata del custom_id
+            $customId = $captureData['purchase_units'][0]['custom_id'] ?? null;
+            $metadata = $customId ? json_decode($customId, true) : null;
 
-            if (!$invoiceId) {
-                throw new \Exception('No se encontró invoice_id en la respuesta');
+            if (!$metadata) {
+                throw new \Exception('No se encontró metadata en la orden');
             }
 
-            $factura = Factura::with('detalles.tomo')->find($invoiceId);
+            $clienteId = $metadata['cliente_id'] ?? null;
+            $productos = $metadata['productos'] ?? [];
 
-            if (!$factura) {
-                throw new \Exception("No se encontró factura con ID: {$invoiceId}");
+            if (!$clienteId || empty($productos)) {
+                throw new \Exception('Metadata incompleta');
             }
 
-            if ($captureData['status'] === 'COMPLETED' && !$factura->pagado) {
-                // Marcar factura como pagada
-                $factura->pagado = true;
-                $factura->save();
+            // ✅ CREAR FACTURA SOLO AQUÍ CON PAGADO = TRUE
+            $factura = Factura::create([
+                'numero' => 'PP-' . time() . '-' . Str::random(6),
+                'cliente_id' => $clienteId,
+                'pagado' => true, // Directamente true
+            ]);
 
-                // Decrementar stock
-                foreach ($factura->detalles as $detalle) {
-                    $tomo = $detalle->tomo;
-                    if ($tomo) {
-                        $tomo->decrement('stock', $detalle->cantidad);
-                        Log::info("📦 Stock actualizado - Tomo {$tomo->id}: -{$detalle->cantidad}");
-                    }
+            // Crear detalles y actualizar stock
+            foreach ($productos as $prod) {
+                $subtotal = (float) $prod['cantidad'] * $prod['precio_unitario'];
+
+                DetalleFactura::create([
+                    'factura_id' => $factura->id,
+                    'tomo_id' => $prod['tomo_id'],
+                    'cantidad' => (int) $prod['cantidad'],
+                    'precio_unitario' => (float) $prod['precio_unitario'],
+                    'subtotal' => $subtotal,
+                ]);
+
+                // Actualizar stock
+                $tomo = Tomo::find($prod['tomo_id']);
+                if ($tomo) {
+                    $stockAnterior = $tomo->stock;
+                    $tomo->decrement('stock', $prod['cantidad']);
+                    Log::info("📦 Stock actualizado - Tomo {$tomo->id}: {$stockAnterior} -> {$tomo->stock}");
                 }
-
-                Log::info("💰 Factura {$factura->id} marcada como pagada");
             }
 
             DB::commit();
 
+            Log::info("✅ Factura {$factura->id} creada como PAGADA");
+
             return response()->json(array_merge($captureData, [
                 'sandbox_mode' => true,
-                'factura_id' => $factura->id
+                'factura_id' => $factura->id,
+                'factura_numero' => $factura->numero
             ]));
 
         } catch (\Exception $e) {
@@ -248,91 +248,74 @@ class PayPalController extends Controller
         }
     }
 
-   public function webhook(Request $request)
-{
-    Log::info('📥 Webhook PayPal recibido:', $request->all());
+    public function webhook(Request $request)
+    {
+        Log::info('📥 Webhook PayPal recibido:', $request->all());
 
-    $payload = $request->all();
-    $eventType = $payload['event_type'] ?? null;
+        $payload = $request->all();
+        $eventType = $payload['event_type'] ?? null;
 
-    Log::info("🔔 Evento PayPal: {$eventType}");
+        Log::info("🔔 Evento PayPal: {$eventType}");
 
-    try {
-        // Manejar diferentes tipos de eventos
-        switch ($eventType) {
-            case 'PAYMENT.CAPTURE.COMPLETED':
+        try {
+            if ($eventType === 'PAYMENT.CAPTURE.COMPLETED') {
                 return $this->handlePaymentCompleted($payload);
-
-            case 'PAYMENT.CAPTURE.DENIED':
-                Log::info('❌ Pago denegado via webhook');
-                return response()->json(['status' => 'denied_processed']);
-
-            case 'PAYMENT.CAPTURE.PENDING':
-                Log::info('⏳ Pago pendiente via webhook');
-                return response()->json(['status' => 'pending_processed']);
-
-            case 'CHECKOUT.ORDER.APPROVED':
-                Log::info('✅ Orden aprobada via webhook');
-                $orderId = $payload['resource']['id'] ?? null;
-                if ($orderId) {
-                    return $this->captureOrder($orderId);
-                }
-                break;
-
-            default:
-                Log::info("🔔 Evento no manejado: {$eventType}");
-                break;
-        }
-
-        return response()->json(['status' => 'received'], 200);
-
-    } catch (\Exception $e) {
-        Log::error('❌ Error en webhook: ' . $e->getMessage());
-        return response()->json(['error' => 'Processing failed'], 500);
-    }
-}
-
-private function handlePaymentCompleted($payload)
-{
-    $captureId = $payload['resource']['id'] ?? null;
-    $orderId = $payload['resource']['supplementary_data']['related_ids']['order_id'] ?? null;
-    $invoiceId = $payload['resource']['invoice_id'] ?? null;
-
-    Log::info("💰 Pago completado - Capture: {$captureId}, Order: {$orderId}, Invoice: {$invoiceId}");
-
-    // Si tenemos invoice_id, actualizar directamente
-    if ($invoiceId) {
-        $factura = Factura::with('detalles.tomo')->find($invoiceId);
-
-        if ($factura && !$factura->pagado) {
-            $factura->pagado = true;
-            $factura->save();
-
-            foreach ($factura->detalles as $detalle) {
-                $tomo = $detalle->tomo;
-                if ($tomo) {
-                    $stockAnterior = $tomo->stock;
-                    $tomo->stock = max(0, $tomo->stock - $detalle->cantidad);
-                    $tomo->save();
-                    Log::info("📦 Stock actualizado - Tomo ID {$tomo->id}: {$stockAnterior} -> {$tomo->stock}");
-                }
             }
 
-            Log::info("✅ Factura {$factura->id} actualizada via webhook");
-            return response()->json(['status' => 'success'], 200);
+            return response()->json(['status' => 'received'], 200);
+
+        } catch (\Exception $e) {
+            Log::error('❌ Error en webhook: ' . $e->getMessage());
+            return response()->json(['error' => 'Processing failed'], 500);
         }
     }
 
-    // Fallback: usar el método captureOrder
-    if ($orderId) {
-        return $this->captureOrder($orderId);
+    private function handlePaymentCompleted($payload)
+    {
+        $customId = $payload['resource']['custom_id'] ?? null;
+        $metadata = $customId ? json_decode($customId, true) : null;
+
+        if ($metadata) {
+            $clienteId = $metadata['cliente_id'] ?? null;
+            $productos = $metadata['productos'] ?? [];
+
+            if ($clienteId && !empty($productos)) {
+                DB::transaction(function () use ($clienteId, $productos) {
+                    // ✅ CREAR FACTURA CON PAGADO = TRUE
+                    $factura = Factura::create([
+                        'numero' => 'PP-WH-' . time() . '-' . Str::random(6),
+                        'cliente_id' => $clienteId,
+                        'pagado' => true,
+                    ]);
+
+                    foreach ($productos as $prod) {
+                        $subtotal = (float) $prod['cantidad'] * $prod['precio_unitario'];
+
+                        DetalleFactura::create([
+                            'factura_id' => $factura->id,
+                            'tomo_id' => $prod['tomo_id'],
+                            'cantidad' => (int) $prod['cantidad'],
+                            'precio_unitario' => (float) $prod['precio_unitario'],
+                            'subtotal' => $subtotal,
+                        ]);
+
+                        $tomo = Tomo::find($prod['tomo_id']);
+                        if ($tomo) {
+                            $tomo->decrement('stock', $prod['cantidad']);
+                        }
+                    }
+
+                    Log::info("✅ Factura {$factura->id} creada como PAGADA via webhook");
+                });
+
+                return response()->json(['status' => 'success'], 200);
+            }
+        }
+
+        Log::error('❌ No se pudo procesar el webhook');
+        return response()->json(['error' => 'Missing data'], 400);
     }
 
-    Log::error('❌ No se pudo procesar el webhook - sin order_id ni invoice_id');
-    return response()->json(['error' => 'Missing data'], 400);
-}
-
-    // Método auxiliar para verificar el estado de una orden
     public function getOrder($orderId)
     {
         try {
@@ -350,7 +333,6 @@ private function handlePaymentCompleted($payload)
         }
     }
 
-    // Método para verificar la configuración
     public function checkConfig()
     {
         return response()->json([
@@ -360,3 +342,4 @@ private function handlePaymentCompleted($payload)
             'status' => 'Configurado para pruebas'
         ]);
     }
+}
