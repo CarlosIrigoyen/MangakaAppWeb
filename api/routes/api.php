@@ -35,7 +35,8 @@ Route::get('filters', [FiltroController::class, 'getFilters']);
 // Webhook público de MercadoPago
 Route::post('mercadopago/webhook', [MercadoPagoController::class, 'webhook']);
 Route::post('mercadopago/preference', [MercadoPagoController::class, 'createPreference']);
-
+// Webhook público de PayPalphp
+Route::post('paypal/webhook', [PayPalController::class, 'webhook']);
 // --- RUTAS PROTEGIDAS (Sanctum) ---
 Route::middleware('auth:sanctum')->group(function () {
     // Logout y usuario actual
@@ -61,7 +62,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/carrito/guardar', [CarritoController::class, 'guardarCarrito']);
     Route::get('/carrito/obtener/{clienteId}', [CarritoController::class, 'obtenerCarrito']);
     Route::delete('/carrito/limpiar/{clienteId}', [CarritoController::class, 'limpiarCarrito']);
-    Route::middleware('auth:sanctum')
-    ->post('/paypal/create-order', [PayPalController::class,'createOrder']);
-
+    Route::post('paypal/create-order', [PayPalController::class, 'createOrder']);
+    Route::post('paypal/capture-order/{orderId}', [PayPalController::class, 'captureOrder']);
+    Route::get('paypal/order/{orderId}', [PayPalController::class, 'getOrder']);
 });
