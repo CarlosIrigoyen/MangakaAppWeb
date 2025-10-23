@@ -130,7 +130,7 @@ class PayPalController extends Controller
                 ],
                 'application_context' => [
                     'return_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/facturas',
-                    'cancel_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/carrito',
+                    'cancel_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/cart',
                     'brand_name' => 'MangakaBaka Store',
                     'user_action' => 'PAY_NOW',
                     'shipping_preference' => 'NO_SHIPPING'
