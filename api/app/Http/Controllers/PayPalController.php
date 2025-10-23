@@ -258,48 +258,89 @@ class PayPalController extends Controller
         }
     }
 
-    public function webhook(Request $request)
-    {
-        Log::info('📥 Webhook PayPal Sandbox recibido:', $request->all());
+   public function webhook(Request $request)
+{
+    Log::info('📥 Webhook PayPal recibido:', $request->all());
 
-        $payload = $request->all();
-        $eventType = $payload['event_type'] ?? null;
-        $resource = $payload['resource'] ?? null;
+    $payload = $request->all();
+    $eventType = $payload['event_type'] ?? null;
 
-        Log::info("🔔 Evento PayPal Sandbox: {$eventType}");
+    Log::info("🔔 Evento PayPal: {$eventType}");
 
-        if ($eventType === 'PAYMENT.CAPTURE.COMPLETED') {
-            $captureId = $resource['id'] ?? null;
+    try {
+        // Manejar diferentes tipos de eventos
+        switch ($eventType) {
+            case 'PAYMENT.CAPTURE.COMPLETED':
+                return $this->handlePaymentCompleted($payload);
 
-            if ($captureId) {
-                try {
-                    $accessToken = $this->getAccessToken();
+            case 'PAYMENT.CAPTURE.DENIED':
+                Log::info('❌ Pago denegado via webhook');
+                return response()->json(['status' => 'denied_processed']);
 
-                    // Obtener detalles del capture para conseguir el order_id
-                    $response = Http::withToken($accessToken)
-                        ->get("{$this->paypalBaseUrl}/v2/payments/captures/{$captureId}");
+            case 'PAYMENT.CAPTURE.PENDING':
+                Log::info('⏳ Pago pendiente via webhook');
+                return response()->json(['status' => 'pending_processed']);
 
-                    if ($response->successful()) {
-                        $captureDetails = $response->json();
-                        $orderLink = collect($captureDetails['links'])->firstWhere('rel', 'up');
-
-                        if ($orderLink) {
-                            // Extraer order_id de la URL
-                            $orderUrl = $orderLink['href'];
-                            $orderId = basename($orderUrl);
-
-                            // Llamar a captureOrder para procesar el pago
-                            return $this->captureOrder($orderId);
-                        }
-                    }
-                } catch (\Exception $e) {
-                    Log::error('❌ Error procesando webhook PayPal Sandbox: ' . $e->getMessage());
+            case 'CHECKOUT.ORDER.APPROVED':
+                Log::info('✅ Orden aprobada via webhook');
+                $orderId = $payload['resource']['id'] ?? null;
+                if ($orderId) {
+                    return $this->captureOrder($orderId);
                 }
-            }
+                break;
+
+            default:
+                Log::info("🔔 Evento no manejado: {$eventType}");
+                break;
         }
 
-        return response()->json(['message' => 'Webhook Sandbox processed', 'sandbox_mode' => true], 200);
+        return response()->json(['status' => 'received'], 200);
+
+    } catch (\Exception $e) {
+        Log::error('❌ Error en webhook: ' . $e->getMessage());
+        return response()->json(['error' => 'Processing failed'], 500);
     }
+}
+
+private function handlePaymentCompleted($payload)
+{
+    $captureId = $payload['resource']['id'] ?? null;
+    $orderId = $payload['resource']['supplementary_data']['related_ids']['order_id'] ?? null;
+    $invoiceId = $payload['resource']['invoice_id'] ?? null;
+
+    Log::info("💰 Pago completado - Capture: {$captureId}, Order: {$orderId}, Invoice: {$invoiceId}");
+
+    // Si tenemos invoice_id, actualizar directamente
+    if ($invoiceId) {
+        $factura = Factura::with('detalles.tomo')->find($invoiceId);
+
+        if ($factura && !$factura->pagado) {
+            $factura->pagado = true;
+            $factura->save();
+
+            foreach ($factura->detalles as $detalle) {
+                $tomo = $detalle->tomo;
+                if ($tomo) {
+                    $stockAnterior = $tomo->stock;
+                    $tomo->stock = max(0, $tomo->stock - $detalle->cantidad);
+                    $tomo->save();
+                    Log::info("📦 Stock actualizado - Tomo ID {$tomo->id}: {$stockAnterior} -> {$tomo->stock}");
+                }
+            }
+
+            Log::info("✅ Factura {$factura->id} actualizada via webhook");
+            return response()->json(['status' => 'success'], 200);
+        }
+    }
+
+    // Fallback: usar el método captureOrder
+    if ($orderId) {
+        return $this->captureOrder($orderId);
+    }
+
+    Log::error('❌ No se pudo procesar el webhook - sin order_id ni invoice_id');
+    return response()->json(['error' => 'Missing data'], 400);
+}
 
     // Método auxiliar para verificar el estado de una orden
     public function getOrder($orderId)
