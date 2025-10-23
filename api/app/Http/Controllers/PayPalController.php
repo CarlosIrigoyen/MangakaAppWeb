@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use App\Models\Factura;
 use App\Models\DetalleFactura;
+use App\Models\Tomo;
 
 class PayPalController extends Controller
 {
