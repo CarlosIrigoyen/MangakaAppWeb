@@ -40,12 +40,12 @@ class PayPalController extends Controller
                     [
                         "reference_id" => $externalReference,
                         "amount" => [
-                            "currency_code" => "USD",
-                            "value" => number_format($total / 100, 2), // Convertir a USD si es necesario
+                            "currency_code" => "ARS", // Cambiado de USD a ARS
+                            "value" => number_format($total, 2), // Usar el total directamente en pesos
                             "breakdown" => [
                                 "item_total" => [
-                                    "currency_code" => "USD",
-                                    "value" => number_format($total / 100, 2)
+                                    "currency_code" => "ARS", // Cambiado de USD a ARS
+                                    "value" => number_format($total, 2) // Usar el total directamente en pesos
                                 ]
                             ]
                         ],
@@ -54,8 +54,8 @@ class PayPalController extends Controller
                                 "name" => $product['titulo'],
                                 "quantity" => $product['cantidad'],
                                 "unit_amount" => [
-                                    "currency_code" => "USD",
-                                    "value" => number_format($product['precio_unitario'] / 100, 2)
+                                    "currency_code" => "ARS", // Cambiado de USD a ARS
+                                    "value" => number_format($product['precio_unitario'], 2) // Precio unitario en pesos
                                 ]
                             ];
                         }, $request->input('productos'))
@@ -97,11 +97,20 @@ class PayPalController extends Controller
         }
     }
 
-    public function captureOrder(Request $request, $orderId)
+    public function captureOrder(Request $request, $externalReference)
     {
-        Log::info("🎯 Capturando orden PayPal: {$orderId}");
+        Log::info("🎯 Capturando orden PayPal: {$externalReference}");
 
         try {
+            // Primero obtener el order_id de la sesión
+            $orderId = session('paypal_order_' . $externalReference);
+
+            if (!$orderId) {
+                return response()->json([
+                    'message' => 'No se encontró la orden de PayPal.'
+                ], 400);
+            }
+
             $provider = new PayPalClient;
             $provider->setApiCredentials(config('paypal'));
             $provider->getAccessToken();
@@ -109,32 +118,36 @@ class PayPalController extends Controller
             $result = $provider->capturePaymentOrder($orderId);
 
             if ($result['status'] === 'COMPLETED') {
-                $externalReference = $result['purchase_units'][0]['reference_id'] ?? null;
+                $factura = Factura::where('external_reference', $externalReference)->first();
 
-                if ($externalReference) {
-                    $factura = Factura::where('external_reference', $externalReference)->first();
+                if ($factura && !$factura->pagado) {
+                    // Marcar como pagada usando el FacturaController
+                    $markPaidResponse = app(FacturaController::class)->marcarComoPagada(
+                        new Request([
+                            'payment_id' => $orderId,
+                            'fecha_pago' => now()
+                        ]),
+                        $factura->id
+                    );
 
-                    if ($factura && !$factura->pagado) {
-                        // Marcar como pagada usando el FacturaController
-                        $markPaidResponse = app(FacturaController::class)->marcarComoPagada(
-                            new Request([
-                                'payment_id' => $orderId,
-                                'fecha_pago' => now()
-                            ]),
-                            $factura->id
-                        );
+                    if ($markPaidResponse->getStatusCode() === 200) {
+                        Log::info("💰 Factura {$factura->id} marcada como pagada via PayPal");
 
-                        if ($markPaidResponse->getStatusCode() === 200) {
-                            Log::info("💰 Factura {$factura->id} marcada como pagada via PayPal");
-                        }
+                        // Limpiar la sesión
+                        session()->forget('paypal_order_' . $externalReference);
+
+                        return response()->json([
+                            'message' => 'Pago completado exitosamente',
+                            'factura_id' => $factura->id,
+                            'external_reference' => $externalReference
+                        ]);
                     }
                 }
 
                 return response()->json([
-                    'message' => 'Pago completado exitosamente',
-                    'factura_id' => $factura->id ?? null,
-                    'external_reference' => $externalReference
-                ]);
+                    'message' => 'La factura ya estaba pagada o no se encontró',
+                    'factura_id' => $factura->id ?? null
+                ], 400);
             }
 
             return response()->json([
