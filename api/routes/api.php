@@ -1,4 +1,5 @@
 <?php
+// routes/api.php
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +27,9 @@ Route::get('filters', [FiltroController::class, 'getFilters']);
 Route::post('mercadopago/webhook', [MercadoPagoController::class, 'webhook']);
 Route::post('paypal/webhook', [PayPalController::class, 'webhook']);
 
+// Ruta pública para el retorno de PayPal
+Route::get('paypal/return', [PayPalController::class, 'handleReturn']);
+
 // --- RUTAS PROTEGIDAS (Sanctum) ---
 Route::middleware('auth:sanctum')->group(function () {
     // Auth
@@ -38,14 +42,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('mercadopago/preference', [MercadoPagoController::class, 'createPreference']);
     Route::post('paypal/create-order', [PayPalController::class, 'createOrder']);
     Route::post('paypal/capture-order/{orderId}', [PayPalController::class, 'captureOrder']);
+    Route::get('paypal/order/{orderId}', [PayPalController::class, 'getOrder']);
 
-    // Facturas (rutas originales)
+    // Para debugging (puedes eliminar estas después)
+    Route::get('paypal/debug-config', [PayPalController::class, 'debugConfig']);
+
+    // Facturas ORIGINALES
     Route::prefix('orders')->group(function () {
-        // Esta ruta es para crear facturas impagas (checkout directo, sin pasarela de pago?)
         Route::post('checkout', [FacturaController::class, 'checkout']);
-        // Listar facturas del cliente
         Route::get('invoices', [FacturaController::class, 'index']);
-        // Mostrar detalle de una factura
         Route::get('invoices/{factura}', [FacturaController::class, 'show']);
     });
 
