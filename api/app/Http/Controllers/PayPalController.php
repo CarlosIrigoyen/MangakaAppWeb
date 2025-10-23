@@ -17,16 +17,21 @@ class PayPalController extends Controller
 
     public function __construct()
     {
+        // FORZAR MODO SANDBOX SIEMPRE - incluso en producción
         $this->paypalBaseUrl = 'https://api.sandbox.paypal.com';
 
         $this->clientId = env('PAYPAL_CLIENT_ID');
         $this->clientSecret = env('PAYPAL_CLIENT_SECRET');
+
+        Log::info("🔧 PayPal Controller configurado en modo SANDBOX forzado");
+        Log::info("🔧 Client ID: " . substr($this->clientId, 0, 10) . "...");
+        Log::info("🔧 Base URL: " . $this->paypalBaseUrl);
     }
 
     private function getAccessToken()
     {
         try {
-            Log::info("🔑 Obteniendo access token de PayPal...");
+            Log::info("🔑 Obteniendo access token de PayPal Sandbox...");
 
             $response = Http::withBasicAuth($this->clientId, $this->clientSecret)
                 ->asForm()
@@ -35,22 +40,22 @@ class PayPalController extends Controller
                 ]);
 
             if ($response->successful()) {
-                Log::info("✅ Access token obtenido exitosamente");
+                Log::info("✅ Access token de Sandbox obtenido exitosamente");
                 return $response->json()['access_token'];
             }
 
-            Log::error('❌ Error obteniendo access token de PayPal: ' . $response->body());
-            throw new \Exception('No se pudo obtener el access token de PayPal: ' . $response->body());
+            Log::error('❌ Error obteniendo access token de PayPal Sandbox: ' . $response->body());
+            throw new \Exception('No se pudo obtener el access token de PayPal Sandbox: ' . $response->body());
 
         } catch (\Exception $e) {
-            Log::error('❌ Exception en getAccessToken: ' . $e->getMessage());
+            Log::error('❌ Exception en getAccessToken Sandbox: ' . $e->getMessage());
             throw $e;
         }
     }
 
     public function createOrder(Request $request)
     {
-        Log::info("📥 Recibido request de PayPal desde React: " . json_encode($request->all()));
+        Log::info("📥 Recibido request de PayPal Sandbox desde React: " . json_encode($request->all()));
 
         // Validación (misma estructura que MercadoPago)
         $request->validate([
@@ -64,7 +69,7 @@ class PayPalController extends Controller
 
         $clienteId = $request->input('cliente_id');
 
-        // Crear factura (SIN campo paypal_order_id)
+        // Crear factura
         $factura = Factura::create([
             'numero'     => 'FAC-' . time() . '-' . Str::random(6),
             'cliente_id' => $clienteId,
@@ -103,20 +108,20 @@ class PayPalController extends Controller
         try {
             $accessToken = $this->getAccessToken();
 
-            // Crear orden en PayPal - usando invoice_id como external_reference
+            // Crear orden en PayPal Sandbox
             $orderData = [
                 'intent' => 'CAPTURE',
                 'purchase_units' => [
                     [
                         'reference_id' => 'factura_' . $factura->id,
-                        'description' => 'Compra de mangas - Tienda MangakaBaka',
-                        'invoice_id' => (string) $factura->id, // ← Usamos invoice_id como external_reference
+                        'description' => 'Compra de mangas - Tienda MangakaBaka (SANDBOX)',
+                        'invoice_id' => (string) $factura->id,
                         'amount' => [
                             'currency_code' => 'USD',
                             'value' => number_format($totalAmount, 2, '.', ''),
                             'breakdown' => [
                                 'item_total' => [
-                                    'currency_code' => 'ARS',
+                                    'currency_code' => 'USD',
                                     'value' => number_format($totalAmount, 2, '.', '')
                                 ]
                             ]
@@ -127,13 +132,13 @@ class PayPalController extends Controller
                 'application_context' => [
                     'return_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/facturas',
                     'cancel_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/carrito',
-                    'brand_name' => 'MangakaBaka Store',
+                    'brand_name' => 'MangakaBaka Store (SANDBOX)',
                     'user_action' => 'PAY_NOW',
                     'shipping_preference' => 'NO_SHIPPING'
                 ]
             ];
 
-            Log::info("📤 Enviando orden a PayPal: " . json_encode($orderData));
+            Log::info("📤 Enviando orden a PayPal Sandbox: " . json_encode($orderData));
 
             $response = Http::withToken($accessToken)
                 ->withHeaders([
@@ -145,41 +150,42 @@ class PayPalController extends Controller
             $responseData = $response->json();
 
             if (!$response->successful()) {
-                Log::error('❌ Error creando orden en PayPal: ' . $response->body());
+                Log::error('❌ Error creando orden en PayPal Sandbox: ' . $response->body());
                 $factura->delete();
 
                 return response()->json([
-                    'message' => 'Error creando la orden de PayPal.',
+                    'message' => 'Error creando la orden de PayPal Sandbox.',
                     'paypal_error' => $responseData,
+                    'sandbox_mode' => true
                 ], 500);
             }
 
-            Log::info("✅ Orden PayPal creada exitosamente: " . $responseData['id']);
-
-            // NO guardamos paypal_order_id en la factura
-            // Usamos invoice_id como referencia
+            Log::info("✅ Orden PayPal Sandbox creada exitosamente: " . $responseData['id']);
 
             // Encontrar el link de aprobación
             $approveLink = collect($responseData['links'])->firstWhere('rel', 'approve');
 
             if (!$approveLink) {
-                throw new \Exception('No se encontró el link de aprobación en la respuesta de PayPal');
+                throw new \Exception('No se encontró el link de aprobación en la respuesta de PayPal Sandbox');
             }
 
             return response()->json([
                 'id' => $responseData['id'],
                 'status' => $responseData['status'],
                 'approve_url' => $approveLink['href'],
-                'external_reference' => (string) $factura->id, // Devolvemos el ID de la factura
+                'external_reference' => (string) $factura->id,
+                'sandbox_mode' => true,
+                'message' => 'MODO PRUEBAS - No se realizará cargo real'
             ]);
 
         } catch (\Exception $e) {
-            Log::error('❌ Exception en createOrder PayPal: ' . $e->getMessage());
+            Log::error('❌ Exception en createOrder PayPal Sandbox: ' . $e->getMessage());
             $factura->delete();
 
             return response()->json([
-                'message' => 'Error creando la orden de PayPal.',
+                'message' => 'Error creando la orden de PayPal Sandbox.',
                 'error' => $e->getMessage(),
+                'sandbox_mode' => true
             ], 500);
         }
     }
@@ -189,7 +195,7 @@ class PayPalController extends Controller
         try {
             $accessToken = $this->getAccessToken();
 
-            Log::info("🎯 Capturando orden PayPal: " . $orderId);
+            Log::info("🎯 Capturando orden PayPal Sandbox: " . $orderId);
 
             $response = Http::withToken($accessToken)
                 ->withHeaders([
@@ -201,14 +207,15 @@ class PayPalController extends Controller
             $captureData = $response->json();
 
             if (!$response->successful()) {
-                Log::error('❌ Error capturando orden PayPal: ' . $response->body());
+                Log::error('❌ Error capturando orden PayPal Sandbox: ' . $response->body());
                 return response()->json([
-                    'message' => 'Error capturando el pago de PayPal.',
+                    'message' => 'Error capturando el pago de PayPal Sandbox.',
                     'paypal_error' => $captureData,
+                    'sandbox_mode' => true
                 ], 500);
             }
 
-            Log::info("✅ Orden PayPal capturada: " . json_encode([
+            Log::info("✅ Orden PayPal Sandbox capturada: " . json_encode([
                 'id' => $captureData['id'],
                 'status' => $captureData['status']
             ]));
@@ -229,36 +236,37 @@ class PayPalController extends Controller
                         if ($tomo) {
                             $tomo->stock = max(0, $tomo->stock - $detalle->cantidad);
                             $tomo->save();
-                            Log::info("📦 Stock actualizado - Tomo ID {$tomo->id}: {$tomo->stock} unidades restantes");
+                            Log::info("📦 Stock actualizado - Tomo ID {$tomo->id}: {$tomo->stock} unidades restantes (SANDBOX)");
                         }
                     }
 
-                    Log::info("✅ Factura {$factura->id} marcada como pagada via PayPal");
+                    Log::info("✅ Factura {$factura->id} marcada como pagada via PayPal Sandbox");
                 }
             } else {
-                Log::warning('⚠️ No se encontró invoice_id en la respuesta de PayPal');
+                Log::warning('⚠️ No se encontró invoice_id en la respuesta de PayPal Sandbox');
             }
 
-            return response()->json($captureData);
+            return response()->json(array_merge($captureData, ['sandbox_mode' => true]));
 
         } catch (\Exception $e) {
-            Log::error('❌ Exception en captureOrder PayPal: ' . $e->getMessage());
+            Log::error('❌ Exception en captureOrder PayPal Sandbox: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Error capturando el pago de PayPal.',
+                'message' => 'Error capturando el pago de PayPal Sandbox.',
                 'error' => $e->getMessage(),
+                'sandbox_mode' => true
             ], 500);
         }
     }
 
     public function webhook(Request $request)
     {
-        Log::info('📥 Webhook PayPal recibido:', $request->all());
+        Log::info('📥 Webhook PayPal Sandbox recibido:', $request->all());
 
         $payload = $request->all();
         $eventType = $payload['event_type'] ?? null;
         $resource = $payload['resource'] ?? null;
 
-        Log::info("🔔 Evento PayPal: {$eventType}");
+        Log::info("🔔 Evento PayPal Sandbox: {$eventType}");
 
         if ($eventType === 'PAYMENT.CAPTURE.COMPLETED') {
             $captureId = $resource['id'] ?? null;
@@ -285,12 +293,12 @@ class PayPalController extends Controller
                         }
                     }
                 } catch (\Exception $e) {
-                    Log::error('❌ Error procesando webhook PayPal: ' . $e->getMessage());
+                    Log::error('❌ Error procesando webhook PayPal Sandbox: ' . $e->getMessage());
                 }
             }
         }
 
-        return response()->json(['message' => 'Webhook processed'], 200);
+        return response()->json(['message' => 'Webhook Sandbox processed', 'sandbox_mode' => true], 200);
     }
 
     // Método auxiliar para verificar el estado de una orden
@@ -302,9 +310,23 @@ class PayPalController extends Controller
             $response = Http::withToken($accessToken)
                 ->get("{$this->paypalBaseUrl}/v2/checkout/orders/{$orderId}");
 
-            return response()->json($response->json());
+            return response()->json(array_merge($response->json(), ['sandbox_mode' => true]));
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json([
+                'error' => $e->getMessage(),
+                'sandbox_mode' => true
+            ], 500);
         }
+    }
+
+    // Método para verificar la configuración
+    public function checkConfig()
+    {
+        return response()->json([
+            'paypal_base_url' => $this->paypalBaseUrl,
+            'client_id_prefix' => substr($this->clientId, 0, 10) . '...',
+            'mode' => 'SANDBOX FORZADO',
+            'status' => 'Configurado para pruebas'
+        ]);
     }
 }
