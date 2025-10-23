@@ -15,24 +15,16 @@ class PayPalController extends Controller
     private $clientId;
     private $clientSecret;
 
-    public function __construct()
+      public function __construct()
     {
-        // FORZAR MODO SANDBOX SIEMPRE - incluso en producción
         $this->paypalBaseUrl = 'https://api.sandbox.paypal.com';
-
         $this->clientId = env('PAYPAL_CLIENT_ID');
         $this->clientSecret = env('PAYPAL_CLIENT_SECRET');
-
-        Log::info("🔧 PayPal Controller configurado en modo SANDBOX forzado");
-        Log::info("🔧 Client ID: " . substr($this->clientId, 0, 10) . "...");
-        Log::info("🔧 Base URL: " . $this->paypalBaseUrl);
     }
 
     private function getAccessToken()
     {
         try {
-            Log::info("🔑 Obteniendo access token de PayPal Sandbox...");
-
             $response = Http::withBasicAuth($this->clientId, $this->clientSecret)
                 ->asForm()
                 ->post("{$this->paypalBaseUrl}/v1/oauth2/token", [
@@ -40,81 +32,86 @@ class PayPalController extends Controller
                 ]);
 
             if ($response->successful()) {
-                Log::info("✅ Access token de Sandbox obtenido exitosamente");
                 return $response->json()['access_token'];
             }
 
-            Log::error('❌ Error obteniendo access token de PayPal Sandbox: ' . $response->body());
-            throw new \Exception('No se pudo obtener el access token de PayPal Sandbox: ' . $response->body());
+            throw new \Exception('No se pudo obtener el access token: ' . $response->body());
 
         } catch (\Exception $e) {
-            Log::error('❌ Exception en getAccessToken Sandbox: ' . $e->getMessage());
+            Log::error('Error en getAccessToken: ' . $e->getMessage());
             throw $e;
         }
     }
 
     public function createOrder(Request $request)
     {
-        Log::info("📥 Recibido request de PayPal Sandbox desde React: " . json_encode($request->all()));
+        Log::info("📥 createOrder PayPal: ", $request->all());
 
-        // Validación (misma estructura que MercadoPago)
-        $request->validate([
-            'cliente_id'               => 'required|integer|exists:clientes,id',
-            'productos'                => 'required|array|min:1',
-            'productos.*.tomo_id'      => 'required|integer|exists:tomos,id',
-            'productos.*.titulo'       => 'required|string|max:255',
-            'productos.*.cantidad'     => 'required|integer|min:1',
-            'productos.*.precio_unitario' => 'required|numeric|min:0',
-        ]);
-
-        $clienteId = $request->input('cliente_id');
-
-        // Crear factura
-        $factura = Factura::create([
-            'numero'     => 'FAC-' . time() . '-' . Str::random(6),
-            'cliente_id' => $clienteId,
-            'pagado'     => false,
-        ]);
-
-        // Calcular total y guardar detalles
-        $totalAmount = 0;
-        $items = [];
-
-        foreach ($request->input('productos', []) as $prod) {
-            $subtotal = (float) $prod['cantidad'] * (float) $prod['precio_unitario'];
-            $totalAmount += $subtotal;
-
-            // Guardar detalle de factura
-            DetalleFactura::create([
-                'factura_id'      => $factura->id,
-                'tomo_id'         => $prod['tomo_id'],
-                'cantidad'        => (int) $prod['cantidad'],
-                'precio_unitario' => (float) $prod['precio_unitario'],
-                'subtotal'        => $subtotal,
+        DB::beginTransaction();
+        try {
+            $request->validate([
+                'cliente_id' => 'required|integer|exists:clientes,id',
+                'productos' => 'required|array|min:1',
+                'productos.*.tomo_id' => 'required|integer|exists:tomos,id',
+                'productos.*.titulo' => 'required|string',
+                'productos.*.cantidad' => 'required|integer|min:1',
+                'productos.*.precio_unitario' => 'required|numeric|min:0',
             ]);
 
-            // Preparar items para PayPal
-            $items[] = [
-                'name' => substr($prod['titulo'], 0, 127),
-                'quantity' => (string) $prod['cantidad'],
-                'unit_amount' => [
-                    'currency_code' => 'USD',
-                    'value' => number_format($prod['precio_unitario'], 2, '.', '')
-                ],
-                'category' => 'DIGITAL_GOODS'
-            ];
-        }
+            $clienteId = $request->input('cliente_id');
+            $productos = $request->input('productos', []);
 
-        try {
+            // 1. Verificar stock
+            foreach ($productos as $prod) {
+                $tomo = Tomo::find($prod['tomo_id']);
+                if (!$tomo || $tomo->stock < $prod['cantidad']) {
+                    throw new \Exception("Stock insuficiente para el tomo ID {$prod['tomo_id']}");
+                }
+            }
+
+            // 2. Crear factura
+            $factura = Factura::create([
+                'numero' => 'PP-' . time() . '-' . Str::random(6),
+                'cliente_id' => $clienteId,
+                'pagado' => false,
+            ]);
+
+            // 3. Crear detalles de factura
+            $totalAmount = 0;
+            $items = [];
+
+            foreach ($productos as $prod) {
+                $subtotal = (float) $prod['cantidad'] * $prod['precio_unitario'];
+                $totalAmount += $subtotal;
+
+                DetalleFactura::create([
+                    'factura_id' => $factura->id,
+                    'tomo_id' => $prod['tomo_id'],
+                    'cantidad' => (int) $prod['cantidad'],
+                    'precio_unitario' => (float) $prod['precio_unitario'],
+                    'subtotal' => $subtotal,
+                ]);
+
+                $items[] = [
+                    'name' => substr($prod['titulo'], 0, 127),
+                    'quantity' => (string) $prod['cantidad'],
+                    'unit_amount' => [
+                        'currency_code' => 'USD',
+                        'value' => number_format($prod['precio_unitario'], 2, '.', '')
+                    ],
+                    'category' => 'DIGITAL_GOODS'
+                ];
+            }
+
+            // 4. Crear orden en PayPal
             $accessToken = $this->getAccessToken();
 
-            // Crear orden en PayPal Sandbox
             $orderData = [
                 'intent' => 'CAPTURE',
                 'purchase_units' => [
                     [
                         'reference_id' => 'factura_' . $factura->id,
-                        'description' => 'Compra de mangas - Tienda MangakaBaka (SANDBOX)',
+                        'description' => 'Compra de mangas - MangakaBaka',
                         'invoice_id' => (string) $factura->id,
                         'amount' => [
                             'currency_code' => 'USD',
@@ -132,13 +129,11 @@ class PayPalController extends Controller
                 'application_context' => [
                     'return_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/facturas',
                     'cancel_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/carrito',
-                    'brand_name' => 'MangakaBaka Store (SANDBOX)',
+                    'brand_name' => 'MangakaBaka Store',
                     'user_action' => 'PAY_NOW',
                     'shipping_preference' => 'NO_SHIPPING'
                 ]
             ];
-
-            Log::info("📤 Enviando orden a PayPal Sandbox: " . json_encode($orderData));
 
             $response = Http::withToken($accessToken)
                 ->withHeaders([
@@ -150,41 +145,33 @@ class PayPalController extends Controller
             $responseData = $response->json();
 
             if (!$response->successful()) {
-                Log::error('❌ Error creando orden en PayPal Sandbox: ' . $response->body());
-                $factura->delete();
-
-                return response()->json([
-                    'message' => 'Error creando la orden de PayPal Sandbox.',
-                    'paypal_error' => $responseData,
-                    'sandbox_mode' => true
-                ], 500);
+                throw new \Exception('Error PayPal: ' . $response->body());
             }
 
-            Log::info("✅ Orden PayPal Sandbox creada exitosamente: " . $responseData['id']);
-
-            // Encontrar el link de aprobación
             $approveLink = collect($responseData['links'])->firstWhere('rel', 'approve');
-
             if (!$approveLink) {
-                throw new \Exception('No se encontró el link de aprobación en la respuesta de PayPal Sandbox');
+                throw new \Exception('No se encontró el link de aprobación');
             }
+
+            DB::commit();
+
+            Log::info("✅ Orden creada - Factura: {$factura->id}, PayPal: {$responseData['id']}");
 
             return response()->json([
                 'id' => $responseData['id'],
                 'status' => $responseData['status'],
                 'approve_url' => $approveLink['href'],
-                'external_reference' => (string) $factura->id,
+                'factura_id' => (string) $factura->id,
                 'sandbox_mode' => true,
                 'message' => 'MODO PRUEBAS - No se realizará cargo real'
             ]);
 
         } catch (\Exception $e) {
-            Log::error('❌ Exception en createOrder PayPal Sandbox: ' . $e->getMessage());
-            $factura->delete();
+            DB::rollBack();
+            Log::error('❌ Error en createOrder: ' . $e->getMessage());
 
             return response()->json([
-                'message' => 'Error creando la orden de PayPal Sandbox.',
-                'error' => $e->getMessage(),
+                'message' => 'Error creando la orden de PayPal: ' . $e->getMessage(),
                 'sandbox_mode' => true
             ], 500);
         }
@@ -192,10 +179,11 @@ class PayPalController extends Controller
 
     public function captureOrder($orderId)
     {
+        DB::beginTransaction();
         try {
             $accessToken = $this->getAccessToken();
 
-            Log::info("🎯 Capturando orden PayPal Sandbox: " . $orderId);
+            Log::info("🎯 Capturando orden PayPal: " . $orderId);
 
             $response = Http::withToken($accessToken)
                 ->withHeaders([
@@ -207,52 +195,52 @@ class PayPalController extends Controller
             $captureData = $response->json();
 
             if (!$response->successful()) {
-                Log::error('❌ Error capturando orden PayPal Sandbox: ' . $response->body());
-                return response()->json([
-                    'message' => 'Error capturando el pago de PayPal Sandbox.',
-                    'paypal_error' => $captureData,
-                    'sandbox_mode' => true
-                ], 500);
+                throw new \Exception('Error capturando orden: ' . $response->body());
             }
 
-            Log::info("✅ Orden PayPal Sandbox capturada: " . json_encode([
-                'id' => $captureData['id'],
-                'status' => $captureData['status']
-            ]));
-
-            // Buscar la factura usando invoice_id desde purchase_units
+            // Buscar la factura
             $invoiceId = $captureData['purchase_units'][0]['invoice_id'] ?? null;
 
-            if ($invoiceId) {
-                $factura = Factura::with('detalles.tomo')->find($invoiceId);
-
-                if ($factura && $captureData['status'] === 'COMPLETED') {
-                    // Marcar factura como pagada
-                    $factura->update(['pagado' => true]);
-
-                    // Decrementar stock
-                    foreach ($factura->detalles as $detalle) {
-                        $tomo = $detalle->tomo;
-                        if ($tomo) {
-                            $tomo->stock = max(0, $tomo->stock - $detalle->cantidad);
-                            $tomo->save();
-                            Log::info("📦 Stock actualizado - Tomo ID {$tomo->id}: {$tomo->stock} unidades restantes (SANDBOX)");
-                        }
-                    }
-
-                    Log::info("✅ Factura {$factura->id} marcada como pagada via PayPal Sandbox");
-                }
-            } else {
-                Log::warning('⚠️ No se encontró invoice_id en la respuesta de PayPal Sandbox');
+            if (!$invoiceId) {
+                throw new \Exception('No se encontró invoice_id en la respuesta');
             }
 
-            return response()->json(array_merge($captureData, ['sandbox_mode' => true]));
+            $factura = Factura::with('detalles.tomo')->find($invoiceId);
+
+            if (!$factura) {
+                throw new \Exception("No se encontró factura con ID: {$invoiceId}");
+            }
+
+            if ($captureData['status'] === 'COMPLETED' && !$factura->pagado) {
+                // Marcar factura como pagada
+                $factura->pagado = true;
+                $factura->save();
+
+                // Decrementar stock
+                foreach ($factura->detalles as $detalle) {
+                    $tomo = $detalle->tomo;
+                    if ($tomo) {
+                        $tomo->decrement('stock', $detalle->cantidad);
+                        Log::info("📦 Stock actualizado - Tomo {$tomo->id}: -{$detalle->cantidad}");
+                    }
+                }
+
+                Log::info("💰 Factura {$factura->id} marcada como pagada");
+            }
+
+            DB::commit();
+
+            return response()->json(array_merge($captureData, [
+                'sandbox_mode' => true,
+                'factura_id' => $factura->id
+            ]));
 
         } catch (\Exception $e) {
-            Log::error('❌ Exception en captureOrder PayPal Sandbox: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('❌ Error en captureOrder: ' . $e->getMessage());
+
             return response()->json([
-                'message' => 'Error capturando el pago de PayPal Sandbox.',
-                'error' => $e->getMessage(),
+                'message' => 'Error capturando el pago: ' . $e->getMessage(),
                 'sandbox_mode' => true
             ], 500);
         }
