@@ -118,7 +118,7 @@ class PayPalController extends Controller
                             'value' => number_format($totalAmount, 2, '.', ''),
                             'breakdown' => [
                                 'item_total' => [
-                                    'currency_code' => 'USD',
+                                    'currency_code' => 'ARS',
                                     'value' => number_format($totalAmount, 2, '.', '')
                                 ]
                             ]
