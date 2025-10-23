@@ -38,6 +38,7 @@ class PayPalController extends Controller
                 return $response->json()['access_token'];
             }
 
+            Log::error('getAccessToken failed, body: ' . $response->body());
             throw new \Exception('No se pudo obtener el access token: ' . $response->body());
 
         } catch (\Exception $e) {
@@ -93,6 +94,8 @@ class PayPalController extends Controller
             // 3. Crear orden en PayPal con metadata
             $accessToken = $this->getAccessToken();
 
+            $frontendUrl = env('APP_FRONTEND_URL', 'https://mangakaappwebfront-production-b10c.up.railway.app');
+
             $orderData = [
                 'intent' => 'CAPTURE',
                 'purchase_units' => [
@@ -117,8 +120,8 @@ class PayPalController extends Controller
                     ]
                 ],
                 'application_context' => [
-                    'return_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/facturas',
-                    'cancel_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/cart',
+                    'return_url' => $frontendUrl . '/paypal-return',
+                    'cancel_url' => $frontendUrl . '/cart',
                     'brand_name' => 'MangakaBaka Store',
                     'user_action' => 'PAY_NOW',
                     'shipping_preference' => 'NO_SHIPPING'
@@ -135,11 +138,13 @@ class PayPalController extends Controller
             $responseData = $response->json();
 
             if (!$response->successful()) {
+                Log::error('PayPal create-order error body: ' . $response->body());
                 throw new \Exception('Error PayPal: ' . $response->body());
             }
 
-            $approveLink = collect($responseData['links'])->firstWhere('rel', 'approve');
+            $approveLink = collect($responseData['links'] ?? [])->firstWhere('rel', 'approve');
             if (!$approveLink) {
+                Log::error('No approve link in PayPal response: ' . json_encode($responseData));
                 throw new \Exception('No se encontró el link de aprobación');
             }
 
@@ -181,14 +186,24 @@ class PayPalController extends Controller
             $captureData = $response->json();
 
             if (!$response->successful()) {
+                Log::error('PayPal capture error body: ' . $response->body());
                 throw new \Exception('Error capturando orden: ' . $response->body());
             }
 
+            $status = $captureData['status'] ?? null;
+            Log::info("PayPal capture status: {$status}");
             // Extraer metadata del custom_id
             $customId = $captureData['purchase_units'][0]['custom_id'] ?? null;
             $metadata = $customId ? json_decode($customId, true) : null;
 
             if (!$metadata) {
+                // Intentar extraer metadata de captures si el custom_id no está en purchase_units
+                $customIdAlt = $captureData['purchase_units'][0]['payments']['captures'][0]['custom_id'] ?? null;
+                $metadata = $customIdAlt ? json_decode($customIdAlt, true) : null;
+            }
+
+            if (!$metadata) {
+                Log::error('No se encontró metadata en la orden capture: ' . json_encode($captureData));
                 throw new \Exception('No se encontró metadata en la orden');
             }
 
@@ -196,6 +211,7 @@ class PayPalController extends Controller
             $productos = $metadata['productos'] ?? [];
 
             if (!$clienteId || empty($productos)) {
+                Log::error('Metadata incompleta: ' . json_encode($metadata));
                 throw new \Exception('Metadata incompleta');
             }
 
@@ -341,5 +357,28 @@ class PayPalController extends Controller
             'mode' => 'SANDBOX FORZADO',
             'status' => 'Configurado para pruebas'
         ]);
+    }
+
+    // Alias para la ruta que apuntaba a debugConfig en routes/api.php
+    public function debugConfig()
+    {
+        return $this->checkConfig();
+    }
+
+    // Manejar el retorno público de PayPal (redireccionar al frontend)
+    public function handleReturn(Request $request)
+    {
+        // PayPal devuelve token=ORDER_ID en la query string
+        $orderId = $request->query('token');
+        $frontendUrl = env('APP_FRONTEND_URL', 'https://mangakaappwebfront-production-b10c.up.railway.app');
+
+        if (!$orderId) {
+            Log::warning('PayPal return called without token', $request->all());
+            // Si no hay token, redirigir al frontend al cart
+            return redirect()->away($frontendUrl . '/cart');
+        }
+
+        // Redirigir al frontend a la página que realizará la captura
+        return redirect()->away($frontendUrl . '/paypal-return?token=' . urlencode($orderId));
     }
 }
