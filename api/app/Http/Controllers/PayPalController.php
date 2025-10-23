@@ -1,11 +1,10 @@
 <?php
 
-namespace App\Http\Controllers;
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 use App\Models\Factura;
 use App\Models\DetalleFactura;
 use App\Models\Tomo;
