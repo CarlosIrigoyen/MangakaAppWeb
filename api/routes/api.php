@@ -37,9 +37,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Payment
     Route::post('mercadopago/preference', [MercadoPagoController::class, 'createPreference']);
-    Route::post('paypal/create-order', [PayPalController::class, 'createOrder']);
-    Route::post('paypal/capture-order/{externalReference}', [PayPalController::class, 'captureOrder']);
-
+      Route::post('paypal/create-order', [PayPalController::class, 'createOrder']);
+    Route::post('paypal/capture-order/{orderId}', [PayPalController::class, 'captureOrder']);
     // Facturas unificadas
     Route::prefix('orders')->group(function () {
         Route::post('create-invoice', [FacturaController::class, 'crearFacturaParaPago']);
