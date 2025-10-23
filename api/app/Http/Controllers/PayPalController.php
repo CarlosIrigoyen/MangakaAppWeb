@@ -17,7 +17,7 @@ class PayPalController extends Controller
     private $clientId;
     private $clientSecret;
 
-    public function __construct()
+      public function __construct()
     {
         $this->paypalBaseUrl = 'https://api.sandbox.paypal.com';
         $this->clientId = env('PAYPAL_CLIENT_ID');
@@ -98,7 +98,7 @@ class PayPalController extends Controller
                     'name' => substr($prod['titulo'], 0, 127),
                     'quantity' => (string) $prod['cantidad'],
                     'unit_amount' => [
-                        'currency_code' => 'ARS',
+                        'currency_code' => 'USD',
                         'value' => number_format($prod['precio_unitario'], 2, '.', '')
                     ],
                     'category' => 'DIGITAL_GOODS'
@@ -116,11 +116,11 @@ class PayPalController extends Controller
                         'description' => 'Compra de mangas - MangakaBaka',
                         'invoice_id' => (string) $factura->id,
                         'amount' => [
-                            'currency_code' => 'ARS',
+                            'currency_code' => 'USD',
                             'value' => number_format($totalAmount, 2, '.', ''),
                             'breakdown' => [
                                 'item_total' => [
-                                    'currency_code' => 'ARS',
+                                    'currency_code' => 'USD',
                                     'value' => number_format($totalAmount, 2, '.', '')
                                 ]
                             ]
@@ -129,8 +129,8 @@ class PayPalController extends Controller
                     ]
                 ],
                 'application_context' => [
-                    'return_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/facturas?paypal_success=true&factura_id=' . $factura->id,
-                    'cancel_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/carrito',
+                    'return_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/facturas',
+                    'cancel_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/cart',
                     'brand_name' => 'MangakaBaka Store',
                     'user_action' => 'PAY_NOW',
                     'shipping_preference' => 'NO_SHIPPING'
@@ -200,12 +200,7 @@ class PayPalController extends Controller
                 throw new \Exception('Error capturando orden: ' . $response->body());
             }
 
-            Log::info("✅ Orden PayPal capturada: " . json_encode([
-                'id' => $captureData['id'],
-                'status' => $captureData['status']
-            ]));
-
-            // Buscar la factura usando invoice_id
+            // Buscar la factura
             $invoiceId = $captureData['purchase_units'][0]['invoice_id'] ?? null;
 
             if (!$invoiceId) {
@@ -223,29 +218,23 @@ class PayPalController extends Controller
                 $factura->pagado = true;
                 $factura->save();
 
-                Log::info("💰 Factura {$factura->id} marcada como pagada");
-
                 // Decrementar stock
                 foreach ($factura->detalles as $detalle) {
                     $tomo = $detalle->tomo;
                     if ($tomo) {
-                        $stockAnterior = $tomo->stock;
                         $tomo->decrement('stock', $detalle->cantidad);
-                        Log::info("📦 Stock actualizado - Tomo {$tomo->id}: {$stockAnterior} -> {$tomo->stock}");
+                        Log::info("📦 Stock actualizado - Tomo {$tomo->id}: -{$detalle->cantidad}");
                     }
                 }
 
-                Log::info("✅ Stock decrementado para factura {$factura->id}");
-            } else {
-                Log::info("ℹ️ Factura {$factura->id} ya estaba pagada o estado no completado");
+                Log::info("💰 Factura {$factura->id} marcada como pagada");
             }
 
             DB::commit();
 
             return response()->json(array_merge($captureData, [
                 'sandbox_mode' => true,
-                'factura_id' => $factura->id,
-                'factura_pagada' => $factura->pagado
+                'factura_id' => $factura->id
             ]));
 
         } catch (\Exception $e) {
@@ -259,122 +248,89 @@ class PayPalController extends Controller
         }
     }
 
-    /**
-     * Nuevo método para procesar el retorno de PayPal
-     */
-    public function handleReturn(Request $request)
-    {
-        Log::info("🔄 Handle Return PayPal: ", $request->all());
+   public function webhook(Request $request)
+{
+    Log::info('📥 Webhook PayPal recibido:', $request->all());
 
-        $token = $request->query('token');
-        $facturaId = $request->query('factura_id');
+    $payload = $request->all();
+    $eventType = $payload['event_type'] ?? null;
 
-        if (!$token) {
-            Log::error('❌ No se encontró token en el return URL');
-            return response()->json(['message' => 'Token no proporcionado'], 400);
+    Log::info("🔔 Evento PayPal: {$eventType}");
+
+    try {
+        // Manejar diferentes tipos de eventos
+        switch ($eventType) {
+            case 'PAYMENT.CAPTURE.COMPLETED':
+                return $this->handlePaymentCompleted($payload);
+
+            case 'PAYMENT.CAPTURE.DENIED':
+                Log::info('❌ Pago denegado via webhook');
+                return response()->json(['status' => 'denied_processed']);
+
+            case 'PAYMENT.CAPTURE.PENDING':
+                Log::info('⏳ Pago pendiente via webhook');
+                return response()->json(['status' => 'pending_processed']);
+
+            case 'CHECKOUT.ORDER.APPROVED':
+                Log::info('✅ Orden aprobada via webhook');
+                $orderId = $payload['resource']['id'] ?? null;
+                if ($orderId) {
+                    return $this->captureOrder($orderId);
+                }
+                break;
+
+            default:
+                Log::info("🔔 Evento no manejado: {$eventType}");
+                break;
         }
 
-        try {
-            // Capturar la orden usando el token (orderId)
-            $captureResponse = $this->captureOrder($token);
-            $captureData = json_decode($captureResponse->getContent(), true);
+        return response()->json(['status' => 'received'], 200);
 
-            if ($captureResponse->getStatusCode() === 200) {
-                Log::info("✅ Pago procesado exitosamente para factura: {$facturaId}");
-                return response()->json([
-                    'message' => 'Pago procesado exitosamente',
-                    'factura_id' => $facturaId,
-                    'paypal_status' => $captureData['status'] ?? 'unknown'
-                ]);
-            } else {
-                throw new \Exception('Error en captureOrder: ' . ($captureData['message'] ?? 'Unknown error'));
-            }
-
-        } catch (\Exception $e) {
-            Log::error('❌ Error en handleReturn: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Error procesando el pago: ' . $e->getMessage()
-            ], 500);
-        }
+    } catch (\Exception $e) {
+        Log::error('❌ Error en webhook: ' . $e->getMessage());
+        return response()->json(['error' => 'Processing failed'], 500);
     }
+}
 
-    public function webhook(Request $request)
-    {
-        Log::info('📥 Webhook PayPal recibido:', $request->all());
+private function handlePaymentCompleted($payload)
+{
+    $captureId = $payload['resource']['id'] ?? null;
+    $orderId = $payload['resource']['supplementary_data']['related_ids']['order_id'] ?? null;
+    $invoiceId = $payload['resource']['invoice_id'] ?? null;
 
-        $payload = $request->all();
-        $eventType = $payload['event_type'] ?? null;
+    Log::info("💰 Pago completado - Capture: {$captureId}, Order: {$orderId}, Invoice: {$invoiceId}");
 
-        Log::info("🔔 Evento PayPal: {$eventType}");
+    // Si tenemos invoice_id, actualizar directamente
+    if ($invoiceId) {
+        $factura = Factura::with('detalles.tomo')->find($invoiceId);
 
-        try {
-            // Manejar diferentes tipos de eventos
-            switch ($eventType) {
-                case 'PAYMENT.CAPTURE.COMPLETED':
-                    return $this->handlePaymentCompleted($payload);
+        if ($factura && !$factura->pagado) {
+            $factura->pagado = true;
+            $factura->save();
 
-                case 'CHECKOUT.ORDER.APPROVED':
-                    $orderId = $payload['resource']['id'] ?? null;
-                    if ($orderId) {
-                        Log::info("✅ Orden aprobada via webhook: {$orderId}");
-                        return $this->captureOrder($orderId);
-                    }
-                    break;
-
-                default:
-                    Log::info("🔔 Evento no manejado: {$eventType}");
-                    break;
-            }
-
-            return response()->json(['status' => 'received'], 200);
-
-        } catch (\Exception $e) {
-            Log::error('❌ Error en webhook: ' . $e->getMessage());
-            return response()->json(['error' => 'Processing failed'], 500);
-        }
-    }
-
-    private function handlePaymentCompleted($payload)
-    {
-        $captureId = $payload['resource']['id'] ?? null;
-        $orderId = $payload['resource']['supplementary_data']['related_ids']['order_id'] ?? null;
-        $invoiceId = $payload['resource']['invoice_id'] ?? null;
-
-        Log::info("💰 Pago completado - Capture: {$captureId}, Order: {$orderId}, Invoice: {$invoiceId}");
-
-        if ($invoiceId) {
-            $factura = Factura::with('detalles.tomo')->find($invoiceId);
-
-            if ($factura && !$factura->pagado) {
-                DB::beginTransaction();
-                try {
-                    $factura->pagado = true;
-                    $factura->save();
-
-                    foreach ($factura->detalles as $detalle) {
-                        $tomo = $detalle->tomo;
-                        if ($tomo) {
-                            $stockAnterior = $tomo->stock;
-                            $tomo->decrement('stock', $detalle->cantidad);
-                            Log::info("📦 Stock actualizado via webhook - Tomo {$tomo->id}: {$stockAnterior} -> {$tomo->stock}");
-                        }
-                    }
-
-                    DB::commit();
-                    Log::info("✅ Factura {$factura->id} actualizada via webhook");
-                    return response()->json(['status' => 'success'], 200);
-
-                } catch (\Exception $e) {
-                    DB::rollBack();
-                    Log::error('❌ Error en handlePaymentCompleted: ' . $e->getMessage());
-                    return response()->json(['error' => 'Processing failed'], 500);
+            foreach ($factura->detalles as $detalle) {
+                $tomo = $detalle->tomo;
+                if ($tomo) {
+                    $stockAnterior = $tomo->stock;
+                    $tomo->stock = max(0, $tomo->stock - $detalle->cantidad);
+                    $tomo->save();
+                    Log::info("📦 Stock actualizado - Tomo ID {$tomo->id}: {$stockAnterior} -> {$tomo->stock}");
                 }
             }
-        }
 
-        Log::error('❌ No se pudo procesar el webhook - sin invoice_id válido');
-        return response()->json(['error' => 'Missing data'], 400);
+            Log::info("✅ Factura {$factura->id} actualizada via webhook");
+            return response()->json(['status' => 'success'], 200);
+        }
     }
+
+    // Fallback: usar el método captureOrder
+    if ($orderId) {
+        return $this->captureOrder($orderId);
+    }
+
+    Log::error('❌ No se pudo procesar el webhook - sin order_id ni invoice_id');
+    return response()->json(['error' => 'Missing data'], 400);
+}
 
     // Método auxiliar para verificar el estado de una orden
     public function getOrder($orderId)
@@ -393,4 +349,14 @@ class PayPalController extends Controller
             ], 500);
         }
     }
-}
+
+    // Método para verificar la configuración
+    public function checkConfig()
+    {
+        return response()->json([
+            'paypal_base_url' => $this->paypalBaseUrl,
+            'client_id_prefix' => substr($this->clientId, 0, 10) . '...',
+            'mode' => 'SANDBOX FORZADO',
+            'status' => 'Configurado para pruebas'
+        ]);
+    }
