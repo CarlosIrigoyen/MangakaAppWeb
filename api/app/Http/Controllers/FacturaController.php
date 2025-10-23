@@ -8,191 +8,79 @@ use App\Models\DetalleFactura;
 use App\Models\Tomo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Log;
 
 class FacturaController extends Controller
 {
     /**
-     * Crear factura para cualquier método de pago
-     * Body JSON: {
-     *   cliente_id: int,
-     *   productos: [ { tomo_id, titulo, cantidad, precio_unitario } ],
-     *   metodo_pago: 'mercadopago'|'paypal'
-     * }
+     * POST /api/orders/checkout
+     * Crea una factura impaga + DetalleFactura + decrementa stock.
+     * Body JSON: { items: [ { id: tomo_id, quantity } ] }
      */
-    public function crearFacturaParaPago(Request $request)
+    public function checkout(Request $request)
     {
+        $user  = $request->user();
+        $items = $request->input('items');
+
         DB::beginTransaction();
         try {
-            $request->validate([
-                'cliente_id' => 'required|integer|exists:clientes,id',
-                'productos' => 'required|array|min:1',
-                'productos.*.tomo_id' => 'required|integer|exists:tomos,id',
-                'productos.*.titulo' => 'required|string',
-                'productos.*.cantidad' => 'required|integer|min:1',
-                'productos.*.precio_unitario' => 'required|numeric|min:0',
-                'metodo_pago' => 'required|string|in:mercadopago,paypal'
-            ]);
-
-            $clienteId = $request->input('cliente_id');
-            $metodoPago = $request->input('metodo_pago');
-            $productos = $request->input('productos', []);
-
-            Log::info("🆕 Creando factura para cliente {$clienteId} con método: {$metodoPago}");
-
-            // 1) Verificar stock
-            foreach ($productos as $prod) {
-                $tomo = Tomo::lockForUpdate()->findOrFail($prod['tomo_id']);
-                if ($tomo->stock < $prod['cantidad']) {
+            // 1) Verificar stock y calcular total
+            $total = 0;
+            foreach ($items as $item) {
+                $tomo = Tomo::lockForUpdate()->findOrFail($item['id']);
+                if ($tomo->stock < $item['quantity']) {
                     return response()->json([
-                        'message' => "Stock insuficiente para el tomo ID {$tomo->id}",
-                        'tomo_id' => $tomo->id,
-                        'stock_disponible' => $tomo->stock,
-                        'cantidad_solicitada' => $prod['cantidad']
+                        'message' => "Stock insuficiente para el tomo ID {$tomo->id}"
                     ], 400);
                 }
+                $total += $tomo->precio * $item['quantity'];
             }
 
-            // 2) Crear factura
+            // 2) Crear factura (pagado = false)
             $factura = Factura::create([
-                'numero' => $this->generarNumeroFactura($metodoPago),
-                'cliente_id' => $clienteId,
-                'pagado' => false,
-                'metodo_pago' => $metodoPago,
-                'external_reference' => Str::uuid()->toString(),
+                'numero'     => uniqid('FAC-'),
+                'cliente_id' => $user->id,
+                'pagado'     => false,
             ]);
 
-            // 3) Crear detalles
-            $total = 0;
-            foreach ($productos as $prod) {
-                $subtotal = (float) $prod['cantidad'] * $prod['precio_unitario'];
-                $total += $subtotal;
+            // 3) Crear cada detalle y decrementar stock
+            foreach ($items as $item) {
+                $tomo     = Tomo::findOrFail($item['id']);
+                $cantidad = $item['quantity'];
+                $precio   = $tomo->precio;
+                $subtotal = $precio * $cantidad;
 
                 DetalleFactura::create([
-                    'factura_id' => $factura->id,
-                    'tomo_id' => $prod['tomo_id'],
-                    'cantidad' => (int) $prod['cantidad'],
-                    'precio_unitario' => (float) $prod['precio_unitario'],
-                    'subtotal' => $subtotal,
+                    'factura_id'      => $factura->id,
+                    'tomo_id'         => $tomo->id,
+                    'cantidad'        => $cantidad,
+                    'precio_unitario' => $precio,
+                    'subtotal'        => $subtotal,
                 ]);
 
-                Log::info("📦 Detalle factura creado: Tomo {$prod['tomo_id']} x {$prod['cantidad']}");
+                $tomo->decrement('stock', $cantidad);
             }
 
             DB::commit();
 
-            Log::info("✅ Factura {$factura->id} creada exitosamente. Total: {$total}");
-
             return response()->json([
-                'message' => 'Factura creada con éxito.',
+                'message'    => 'Factura creada con éxito.',
                 'factura_id' => $factura->id,
-                'numero' => $factura->numero,
-                'external_reference' => $factura->external_reference,
-                'total' => $total,
-                'metodo_pago' => $metodoPago,
+                'numero'     => $factura->numero,
+                'total'      => $total,
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('❌ Error al crear factura: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Error al crear la factura.',
-                'error' => $e->getMessage(),
+                'message' => 'Error al procesar la factura.',
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Marcar factura como pagada y decrementar stock
-     */
-    public function marcarComoPagada(Request $request, $facturaId)
-    {
-        DB::beginTransaction();
-        try {
-            $request->validate([
-                'payment_id' => 'sometimes|string',
-                'fecha_pago' => 'sometimes|date'
-            ]);
-
-            $factura = Factura::with('detalles.tomo')->findOrFail($facturaId);
-
-            if ($factura->pagado) {
-                return response()->json(['message' => 'La factura ya está pagada.'], 400);
-            }
-
-            $factura->pagado = true;
-            $factura->fecha_pago = $request->input('fecha_pago', now());
-            $factura->payment_id = $request->input('payment_id');
-            $factura->save();
-
-            Log::info("💰 Marcando factura {$facturaId} como pagada");
-
-            // Decrementar stock
-            foreach ($factura->detalles as $detalle) {
-                $tomo = $detalle->tomo;
-                if ($tomo) {
-                    $tomo->decrement('stock', $detalle->cantidad);
-                    Log::info("📦 Stock decrementado - Tomo {$tomo->id}: -{$detalle->cantidad}, Stock restante: {$tomo->stock}");
-                }
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Factura marcada como pagada exitosamente.',
-                'factura' => [
-                    'id' => $factura->id,
-                    'numero' => $factura->numero,
-                    'metodo_pago' => $factura->metodo_pago,
-                    'total' => $factura->detalles->sum('subtotal')
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('❌ Error al marcar factura como pagada: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Error al marcar la factura como pagada.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Obtener factura por external_reference
-     */
-    public function obtenerPorReferencia($externalReference)
-    {
-        $factura = Factura::with(['detalles.tomo.manga', 'cliente'])
-                         ->where('external_reference', $externalReference)
-                         ->firstOrFail();
-
-        return response()->json([
-            'id' => $factura->id,
-            'numero' => $factura->numero,
-            'metodo_pago' => $factura->metodo_pago,
-            'pagado' => $factura->pagado,
-            'fecha' => $factura->created_at->toDateTimeString(),
-            'fecha_pago' => $factura->fecha_pago?->toDateTimeString(),
-            'cliente' => [
-                'nombre' => $factura->cliente->nombre,
-                'apellido' => $factura->cliente->apellido,
-            ],
-            'detalles' => $factura->detalles->map(fn($d) => [
-                'tomo_id' => $d->tomo_id,
-                'titulo' => $d->tomo->manga->titulo,
-                'numero_tomo' => $d->tomo->numero_tomo,
-                'cantidad' => $d->cantidad,
-                'precio_unitario' => $d->precio_unitario,
-                'subtotal' => $d->subtotal,
-            ])->values(),
-            'total' => $factura->detalles->sum('subtotal'),
-        ]);
-    }
-
-    /**
-     * Listar facturas pagadas del cliente
+     * GET /api/orders/invoices
+     * Lista las facturas pagadas del cliente autenticado.
      */
     public function index(Request $request)
     {
@@ -202,22 +90,22 @@ class FacturaController extends Controller
                            ->where('pagado', true)
                            ->with('detalles')
                            ->orderBy('created_at', 'desc')
+                           ->limit(1) // ← Asegurate de esto
                            ->get();
 
         return response()->json($facturas->map(function($f) {
             return [
-                'id' => $f->id,
-                'numero' => $f->numero,
-                'total' => $f->detalles->sum('subtotal'),
-                'metodo_pago' => $f->metodo_pago,
+                'id'         => $f->id,
+                'numero'     => $f->numero,
+                'total'      => $f->detalles->sum('subtotal'),
                 'created_at' => $f->created_at->toDateTimeString(),
-                'fecha_pago' => $f->fecha_pago?->toDateTimeString(),
             ];
         }));
     }
 
     /**
-     * Mostrar detalle completo de factura
+     * GET /api/orders/invoices/{factura}
+     * Muestra el detalle completo de una factura del cliente.
      */
     public function show(Request $request, Factura $factura)
     {
@@ -225,41 +113,25 @@ class FacturaController extends Controller
             return response()->json(['message' => 'Acceso denegado'], 403);
         }
 
-        $factura->load('detalles.tomo.manga', 'cliente');
+        $factura->load('detalles.tomo.manga');
 
         return response()->json([
-            'id' => $factura->id,
-            'numero' => $factura->numero,
-            'metodo_pago' => $factura->metodo_pago,
-            'fecha' => $factura->created_at->toDateTimeString(),
-            'fecha_pago' => $factura->fecha_pago?->toDateTimeString(),
-            'cliente' => [
-                'nombre' => $factura->cliente->nombre,
+            'id'       => $factura->id,
+            'numero'   => $factura->numero,
+            'fecha'    => $factura->created_at->toDateTimeString(),
+            'cliente'  => [
+                'nombre'   => $factura->cliente->nombre,
                 'apellido' => $factura->cliente->apellido,
             ],
             'detalles' => $factura->detalles->map(fn($d) => [
-                'tomo_id' => $d->tomo_id,
-                'titulo' => $d->tomo->manga->titulo,
-                'numero_tomo' => $d->tomo->numero_tomo,
-                'cantidad' => $d->cantidad,
+                'tomo_id'         => $d->tomo_id,
+                'titulo'          => $d->tomo->manga->titulo,
+                'numero_tomo'     => $d->tomo->numero_tomo,
+                'cantidad'        => $d->cantidad,
                 'precio_unitario' => $d->precio_unitario,
-                'subtotal' => $d->subtotal,
+                'subtotal'        => $d->subtotal,
             ])->values(),
-            'total' => $factura->detalles->sum('subtotal'),
+            'total'    => $factura->detalles->sum('subtotal'),
         ]);
-    }
-
-    /**
-     * Generar número de factura según método de pago
-     */
-    private function generarNumeroFactura($metodoPago)
-    {
-        $prefix = match($metodoPago) {
-            'paypal' => 'PP-',
-            'mercadopago' => 'MP-',
-            default => 'FAC-'
-        };
-
-        return $prefix . now()->format('Ymd-His') . '-' . Str::upper(Str::random(4));
     }
 }

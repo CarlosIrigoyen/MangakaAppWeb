@@ -19,6 +19,7 @@ class PayPalController extends Controller
     {
         // FORZAR MODO SANDBOX SIEMPRE - incluso en producción
         $this->paypalBaseUrl = 'https://api.sandbox.paypal.com';
+
         $this->clientId = env('PAYPAL_CLIENT_ID');
         $this->clientSecret = env('PAYPAL_CLIENT_SECRET');
 
@@ -56,48 +57,80 @@ class PayPalController extends Controller
     {
         Log::info("📥 Recibido request de PayPal Sandbox desde React: " . json_encode($request->all()));
 
+        // Validación (misma estructura que MercadoPago)
+        $request->validate([
+            'cliente_id'               => 'required|integer|exists:clientes,id',
+            'productos'                => 'required|array|min:1',
+            'productos.*.tomo_id'      => 'required|integer|exists:tomos,id',
+            'productos.*.titulo'       => 'required|string|max:255',
+            'productos.*.cantidad'     => 'required|integer|min:1',
+            'productos.*.precio_unitario' => 'required|numeric|min:0',
+        ]);
+
+        $clienteId = $request->input('cliente_id');
+
+        // Crear factura
+        $factura = Factura::create([
+            'numero'     => 'FAC-' . time() . '-' . Str::random(6),
+            'cliente_id' => $clienteId,
+            'pagado'     => false,
+        ]);
+
+        // Calcular total y guardar detalles
+        $totalAmount = 0;
+        $items = [];
+
+        foreach ($request->input('productos', []) as $prod) {
+            $subtotal = (float) $prod['cantidad'] * (float) $prod['precio_unitario'];
+            $totalAmount += $subtotal;
+
+            // Guardar detalle de factura
+            DetalleFactura::create([
+                'factura_id'      => $factura->id,
+                'tomo_id'         => $prod['tomo_id'],
+                'cantidad'        => (int) $prod['cantidad'],
+                'precio_unitario' => (float) $prod['precio_unitario'],
+                'subtotal'        => $subtotal,
+            ]);
+
+            // Preparar items para PayPal
+            $items[] = [
+                'name' => substr($prod['titulo'], 0, 127),
+                'quantity' => (string) $prod['cantidad'],
+                'unit_amount' => [
+                    'currency_code' => 'USD',
+                    'value' => number_format($prod['precio_unitario'], 2, '.', '')
+                ],
+                'category' => 'DIGITAL_GOODS'
+            ];
+        }
+
         try {
-            // Primero crear la factura usando el FacturaController unificado
-            $facturaResponse = app(FacturaController::class)->crearFacturaParaPago(
-                new Request(array_merge($request->all(), ['metodo_pago' => 'paypal']))
-            );
-
-            if ($facturaResponse->getStatusCode() !== 201) {
-                return $facturaResponse;
-            }
-
-            $facturaData = json_decode($facturaResponse->getContent(), true);
-            $facturaId = $facturaData['factura_id'];
-            $externalReference = $facturaData['external_reference'];
-            $totalAmount = $facturaData['total'];
-
-            Log::info("✅ Factura creada para PayPal: {$externalReference}, Total: {$totalAmount} ARS");
-
             $accessToken = $this->getAccessToken();
 
-            // Crear orden en PayPal Sandbox - AHORA EN PESOS ARGENTINOS
+            // Crear orden en PayPal Sandbox
             $orderData = [
                 'intent' => 'CAPTURE',
                 'purchase_units' => [
                     [
-                        'reference_id' => $externalReference, // Usar external_reference de la factura
+                        'reference_id' => 'factura_' . $factura->id,
                         'description' => 'Compra de mangas - Tienda MangakaBaka (SANDBOX)',
-                        'invoice_id' => (string) $facturaId,
+                        'invoice_id' => (string) $factura->id,
                         'amount' => [
-                            'currency_code' => 'ARS', // CAMBIADO DE USD A ARS
+                            'currency_code' => 'USD',
                             'value' => number_format($totalAmount, 2, '.', ''),
                             'breakdown' => [
                                 'item_total' => [
-                                    'currency_code' => 'ARS', // CAMBIADO DE USD A ARS
+                                    'currency_code' => 'USD',
                                     'value' => number_format($totalAmount, 2, '.', '')
                                 ]
                             ]
                         ],
-                        'items' => $this->prepareItems($request->input('productos', []))
+                        'items' => $items
                     ]
                 ],
                 'application_context' => [
-                    'return_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/facturas?paypal_success=true&external_reference=' . $externalReference,
+                    'return_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/facturas',
                     'cancel_url' => 'https://mangakaappwebfront-production-b10c.up.railway.app/carrito',
                     'brand_name' => 'MangakaBaka Store (SANDBOX)',
                     'user_action' => 'PAY_NOW',
@@ -118,9 +151,7 @@ class PayPalController extends Controller
 
             if (!$response->successful()) {
                 Log::error('❌ Error creando orden en PayPal Sandbox: ' . $response->body());
-
-                // Si falla, eliminar la factura creada
-                Factura::where('external_reference', $externalReference)->delete();
+                $factura->delete();
 
                 return response()->json([
                     'message' => 'Error creando la orden de PayPal Sandbox.',
@@ -138,25 +169,18 @@ class PayPalController extends Controller
                 throw new \Exception('No se encontró el link de aprobación en la respuesta de PayPal Sandbox');
             }
 
-            // Guardar el order_id de PayPal en la sesión para usarlo después
-            session(['paypal_order_' . $externalReference => $responseData['id']]);
-
             return response()->json([
                 'id' => $responseData['id'],
                 'status' => $responseData['status'],
                 'approve_url' => $approveLink['href'],
-                'external_reference' => $externalReference,
+                'external_reference' => (string) $factura->id,
                 'sandbox_mode' => true,
                 'message' => 'MODO PRUEBAS - No se realizará cargo real'
             ]);
 
         } catch (\Exception $e) {
             Log::error('❌ Exception en createOrder PayPal Sandbox: ' . $e->getMessage());
-
-            // Si hay error, eliminar cualquier factura creada
-            if (isset($externalReference)) {
-                Factura::where('external_reference', $externalReference)->delete();
-            }
+            $factura->delete();
 
             return response()->json([
                 'message' => 'Error creando la orden de PayPal Sandbox.',
@@ -166,41 +190,12 @@ class PayPalController extends Controller
         }
     }
 
-    /**
-     * Preparar items para PayPal en formato ARS
-     */
-    private function prepareItems($productos)
-    {
-        return array_map(function($prod) {
-            return [
-                'name' => substr($prod['titulo'], 0, 127),
-                'quantity' => (string) $prod['cantidad'],
-                'unit_amount' => [
-                    'currency_code' => 'ARS', // CAMBIADO DE USD A ARS
-                    'value' => number_format($prod['precio_unitario'], 2, '.', '')
-                ],
-                'category' => 'DIGITAL_GOODS'
-            ];
-        }, $productos);
-    }
-
-    public function captureOrder($externalReference)
+    public function captureOrder($orderId)
     {
         try {
-            // Obtener el order_id de PayPal desde la sesión
-            $orderId = session('paypal_order_' . $externalReference);
-
-            if (!$orderId) {
-                Log::error("❌ No se encontró order_id para la referencia: {$externalReference}");
-                return response()->json([
-                    'message' => 'No se encontró la orden de PayPal.',
-                    'sandbox_mode' => true
-                ], 400);
-            }
-
             $accessToken = $this->getAccessToken();
 
-            Log::info("🎯 Capturando orden PayPal Sandbox: {$orderId} para referencia: {$externalReference}");
+            Log::info("🎯 Capturando orden PayPal Sandbox: " . $orderId);
 
             $response = Http::withToken($accessToken)
                 ->withHeaders([
@@ -225,32 +220,33 @@ class PayPalController extends Controller
                 'status' => $captureData['status']
             ]));
 
-            // Buscar la factura por external_reference
-            $factura = Factura::where('external_reference', $externalReference)->first();
+            // Buscar la factura usando invoice_id desde purchase_units
+            $invoiceId = $captureData['purchase_units'][0]['invoice_id'] ?? null;
 
-            if ($factura && $captureData['status'] === 'COMPLETED' && !$factura->pagado) {
-                // Marcar factura como pagada usando el FacturaController unificado
-                $markPaidResponse = app(FacturaController::class)->marcarComoPagada(
-                    new Request([
-                        'payment_id' => $orderId,
-                        'fecha_pago' => now()
-                    ]),
-                    $factura->id
-                );
+            if ($invoiceId) {
+                $factura = Factura::with('detalles.tomo')->find($invoiceId);
 
-                if ($markPaidResponse->getStatusCode() === 200) {
-                    Log::info("💰 Factura {$factura->id} marcada como pagada via PayPal Sandbox");
+                if ($factura && $captureData['status'] === 'COMPLETED') {
+                    // Marcar factura como pagada
+                    $factura->update(['pagado' => true]);
 
-                    // Limpiar la sesión
-                    session()->forget('paypal_order_' . $externalReference);
+                    // Decrementar stock
+                    foreach ($factura->detalles as $detalle) {
+                        $tomo = $detalle->tomo;
+                        if ($tomo) {
+                            $tomo->stock = max(0, $tomo->stock - $detalle->cantidad);
+                            $tomo->save();
+                            Log::info("📦 Stock actualizado - Tomo ID {$tomo->id}: {$tomo->stock} unidades restantes (SANDBOX)");
+                        }
+                    }
+
+                    Log::info("✅ Factura {$factura->id} marcada como pagada via PayPal Sandbox");
                 }
+            } else {
+                Log::warning('⚠️ No se encontró invoice_id en la respuesta de PayPal Sandbox');
             }
 
-            return response()->json(array_merge($captureData, [
-                'sandbox_mode' => true,
-                'factura_id' => $factura->id ?? null,
-                'external_reference' => $externalReference
-            ]));
+            return response()->json(array_merge($captureData, ['sandbox_mode' => true]));
 
         } catch (\Exception $e) {
             Log::error('❌ Exception en captureOrder PayPal Sandbox: ' . $e->getMessage());
@@ -262,106 +258,89 @@ class PayPalController extends Controller
         }
     }
 
-    public function webhook(Request $request)
-    {
-        Log::info('📥 Webhook PayPal recibido:', $request->all());
+   public function webhook(Request $request)
+{
+    Log::info('📥 Webhook PayPal recibido:', $request->all());
 
-        $payload = $request->all();
-        $eventType = $payload['event_type'] ?? null;
+    $payload = $request->all();
+    $eventType = $payload['event_type'] ?? null;
 
-        Log::info("🔔 Evento PayPal: {$eventType}");
+    Log::info("🔔 Evento PayPal: {$eventType}");
 
-        try {
-            // Manejar diferentes tipos de eventos
-            switch ($eventType) {
-                case 'PAYMENT.CAPTURE.COMPLETED':
-                    return $this->handlePaymentCompleted($payload);
+    try {
+        // Manejar diferentes tipos de eventos
+        switch ($eventType) {
+            case 'PAYMENT.CAPTURE.COMPLETED':
+                return $this->handlePaymentCompleted($payload);
 
-                case 'PAYMENT.CAPTURE.DENIED':
-                    Log::info('❌ Pago denegado via webhook');
-                    return response()->json(['status' => 'denied_processed']);
+            case 'PAYMENT.CAPTURE.DENIED':
+                Log::info('❌ Pago denegado via webhook');
+                return response()->json(['status' => 'denied_processed']);
 
-                case 'PAYMENT.CAPTURE.PENDING':
-                    Log::info('⏳ Pago pendiente via webhook');
-                    return response()->json(['status' => 'pending_processed']);
+            case 'PAYMENT.CAPTURE.PENDING':
+                Log::info('⏳ Pago pendiente via webhook');
+                return response()->json(['status' => 'pending_processed']);
 
-                case 'CHECKOUT.ORDER.APPROVED':
-                    Log::info('✅ Orden aprobada via webhook');
-                    $orderId = $payload['resource']['id'] ?? null;
-                    if ($orderId) {
-                        // Buscar external_reference en los datos del recurso
-                        $externalReference = $payload['resource']['purchase_units'][0]['reference_id'] ?? null;
-                        if ($externalReference) {
-                            return $this->captureOrder($externalReference);
-                        }
-                    }
-                    break;
+            case 'CHECKOUT.ORDER.APPROVED':
+                Log::info('✅ Orden aprobada via webhook');
+                $orderId = $payload['resource']['id'] ?? null;
+                if ($orderId) {
+                    return $this->captureOrder($orderId);
+                }
+                break;
 
-                default:
-                    Log::info("🔔 Evento no manejado: {$eventType}");
-                    break;
+            default:
+                Log::info("🔔 Evento no manejado: {$eventType}");
+                break;
+        }
+
+        return response()->json(['status' => 'received'], 200);
+
+    } catch (\Exception $e) {
+        Log::error('❌ Error en webhook: ' . $e->getMessage());
+        return response()->json(['error' => 'Processing failed'], 500);
+    }
+}
+
+private function handlePaymentCompleted($payload)
+{
+    $captureId = $payload['resource']['id'] ?? null;
+    $orderId = $payload['resource']['supplementary_data']['related_ids']['order_id'] ?? null;
+    $invoiceId = $payload['resource']['invoice_id'] ?? null;
+
+    Log::info("💰 Pago completado - Capture: {$captureId}, Order: {$orderId}, Invoice: {$invoiceId}");
+
+    // Si tenemos invoice_id, actualizar directamente
+    if ($invoiceId) {
+        $factura = Factura::with('detalles.tomo')->find($invoiceId);
+
+        if ($factura && !$factura->pagado) {
+            $factura->pagado = true;
+            $factura->save();
+
+            foreach ($factura->detalles as $detalle) {
+                $tomo = $detalle->tomo;
+                if ($tomo) {
+                    $stockAnterior = $tomo->stock;
+                    $tomo->stock = max(0, $tomo->stock - $detalle->cantidad);
+                    $tomo->save();
+                    Log::info("📦 Stock actualizado - Tomo ID {$tomo->id}: {$stockAnterior} -> {$tomo->stock}");
+                }
             }
 
-            return response()->json(['status' => 'received'], 200);
-
-        } catch (\Exception $e) {
-            Log::error('❌ Error en webhook: ' . $e->getMessage());
-            return response()->json(['error' => 'Processing failed'], 500);
+            Log::info("✅ Factura {$factura->id} actualizada via webhook");
+            return response()->json(['status' => 'success'], 200);
         }
     }
 
-    private function handlePaymentCompleted($payload)
-    {
-        $captureId = $payload['resource']['id'] ?? null;
-        $orderId = $payload['resource']['supplementary_data']['related_ids']['order_id'] ?? null;
-        $invoiceId = $payload['resource']['invoice_id'] ?? null;
-        $externalReference = $payload['resource']['custom_id'] ?? null;
-
-        Log::info("💰 Pago completado - Capture: {$captureId}, Order: {$orderId}, Invoice: {$invoiceId}, Reference: {$externalReference}");
-
-        // Si tenemos external_reference, procesar directamente
-        if ($externalReference) {
-            $factura = Factura::where('external_reference', $externalReference)->first();
-
-            if ($factura && !$factura->pagado) {
-                // Marcar como pagada usando el FacturaController unificado
-                $markPaidResponse = app(FacturaController::class)->marcarComoPagada(
-                    new Request([
-                        'payment_id' => $captureId,
-                        'fecha_pago' => now()
-                    ]),
-                    $factura->id
-                );
-
-                if ($markPaidResponse->getStatusCode() === 200) {
-                    Log::info("✅ Factura {$factura->id} actualizada via webhook");
-                    return response()->json(['status' => 'success'], 200);
-                }
-            }
-        }
-
-        // Fallback: usar invoice_id
-        if ($invoiceId) {
-            $factura = Factura::find($invoiceId);
-            if ($factura && !$factura->pagado) {
-                $markPaidResponse = app(FacturaController::class)->marcarComoPagada(
-                    new Request([
-                        'payment_id' => $captureId,
-                        'fecha_pago' => now()
-                    ]),
-                    $factura->id
-                );
-
-                if ($markPaidResponse->getStatusCode() === 200) {
-                    Log::info("✅ Factura {$factura->id} actualizada via webhook (fallback invoice_id)");
-                    return response()->json(['status' => 'success'], 200);
-                }
-            }
-        }
-
-        Log::error('❌ No se pudo procesar el webhook - sin external_reference ni invoice_id válidos');
-        return response()->json(['error' => 'Missing data'], 400);
+    // Fallback: usar el método captureOrder
+    if ($orderId) {
+        return $this->captureOrder($orderId);
     }
+
+    Log::error('❌ No se pudo procesar el webhook - sin order_id ni invoice_id');
+    return response()->json(['error' => 'Missing data'], 400);
+}
 
     // Método auxiliar para verificar el estado de una orden
     public function getOrder($orderId)
@@ -388,8 +367,7 @@ class PayPalController extends Controller
             'paypal_base_url' => $this->paypalBaseUrl,
             'client_id_prefix' => substr($this->clientId, 0, 10) . '...',
             'mode' => 'SANDBOX FORZADO',
-            'currency' => 'ARS', // Ahora usando pesos argentinos
-            'status' => 'Configurado para pruebas en ARS'
+            'status' => 'Configurado para pruebas'
         ]);
     }
 }
