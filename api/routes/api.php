@@ -1,5 +1,4 @@
 <?php
-// routes/api.php
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -37,14 +36,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Payment
     Route::post('mercadopago/preference', [MercadoPagoController::class, 'createPreference']);
-      Route::post('paypal/create-order', [PayPalController::class, 'createOrder']);
+    Route::post('paypal/create-order', [PayPalController::class, 'createOrder']);
     Route::post('paypal/capture-order/{orderId}', [PayPalController::class, 'captureOrder']);
-    // Facturas unificadas
+
+    // Facturas (rutas originales)
     Route::prefix('orders')->group(function () {
-        Route::post('create-invoice', [FacturaController::class, 'crearFacturaParaPago']);
-        Route::post('invoices/{factura}/mark-paid', [FacturaController::class, 'marcarComoPagada']);
-        Route::get('invoices/by-reference/{reference}', [FacturaController::class, 'obtenerPorReferencia']);
+        // Esta ruta es para crear facturas impagas (checkout directo, sin pasarela de pago?)
+        Route::post('checkout', [FacturaController::class, 'checkout']);
+        // Listar facturas del cliente
         Route::get('invoices', [FacturaController::class, 'index']);
+        // Mostrar detalle de una factura
         Route::get('invoices/{factura}', [FacturaController::class, 'show']);
     });
 
