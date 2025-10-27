@@ -83,8 +83,8 @@ class MercadoPagoController extends Controller
 
             // Devolvemos al frontend los datos necesarios para redireccionar
             return response()->json([
-                'sandbox_init_point' => $preference->sandbox_init_point,
-                //  'init_point'         => $preference->init_point,
+               
+                'init_point'         => $preference->init_point,
                 'id'                 => $preference->id,
                 'external_reference' => $preference->external_reference,
             ]);
