@@ -278,27 +278,27 @@ class PayPalController extends Controller
 }
 
 
-    public function webhook(Request $request)
-    {
-        Log::info('📥 Webhook PayPal recibido:', $request->all());
+   // public function webhook(Request $request)
+    //{
+      //  Log::info('📥 Webhook PayPal recibido:', $request->all());
 
-        $payload = $request->all();
-        $eventType = $payload['event_type'] ?? null;
+        //$payload = $request->all();
+        //$eventType = $payload['event_type'] ?? null;
 
-        Log::info("🔔 Evento PayPal: {$eventType}");
+       // Log::info("🔔 Evento PayPal: {$eventType}");
 
-        try {
-            if ($eventType === 'PAYMENT.CAPTURE.COMPLETED') {
-                return $this->handlePaymentCompleted($payload);
-            }
+        //try {
+          //  if ($eventType === 'PAYMENT.CAPTURE.COMPLETED') {
+             //   return $this->handlePaymentCompleted($payload);
+           // }
 
-            return response()->json(['status' => 'received'], 200);
+            //return response()->json(['status' => 'received'], 200);
 
-        } catch (\Exception $e) {
-            Log::error('❌ Error en webhook: ' . $e->getMessage());
-            return response()->json(['error' => 'Processing failed'], 500);
-        }
-    }
+//        } catch (\Exception $e) {
+  //          Log::error('❌ Error en webhook: ' . $e->getMessage());
+    //        return response()->json(['error' => 'Processing failed'], 500);
+      //  }
+   // }
 
     private function handlePaymentCompleted($payload)
     {
