@@ -68,9 +68,9 @@ class MercadoPagoController extends Controller
         $preferenceData = [
             'items'              => $items,
             'back_urls'          => [
-                'success' => 'https://mangakaappwebfront-production-b10c.up.railway.app/facturas',
-                'failure' => 'https://mangakaappwebfront-production-b10c.up.railway.app/checkout/failure',
-                'pending' => 'https://mangakaappwebfront-production-b10c.up.railway.app/checkout/pending',
+                'success' => 'https://mangakaappwebfront-production.up.railway.app/facturas',
+                'failure' => 'https://mangakaappwebfront-production.up.railway.app/checkout/failure',
+                'pending' => 'https://mangakaappwebfront-production.up.railway.app/checkout/pending',
             ],
             'auto_return'        => 'approved',
             'notification_url'   => 'https://mangakaappweb-production.up.railway.app/api/mercadopago/webhook',
