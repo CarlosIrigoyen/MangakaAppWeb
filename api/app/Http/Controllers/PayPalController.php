@@ -178,7 +178,6 @@ class PayPalController extends Controller
 
             $url = "{$this->paypalBaseUrl}/v2/checkout/orders/{$orderId}/capture";
 
-            // Enviar un JSON vacío explícito para evitar MALFORMED_REQUEST_JSON
             $response = Http::withToken($accessToken)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
@@ -187,18 +186,15 @@ class PayPalController extends Controller
                 ->withBody('{}', 'application/json')
                 ->post($url);
 
-            // Logging extendido para debugging
             Log::info("PayPal capture HTTP status: " . $response->status());
             Log::info("PayPal capture response body: " . $response->body());
 
             $captureData = $response->json();
 
             if (!$response->successful()) {
-                // Si PayPal devuelve error, registrar y lanzar excepción con cuerpo claro
                 $errBody = $response->body();
                 Log::error("PayPal capture error: HTTP {$response->status()} - {$errBody}");
                 
-                // Convertir el error de PayPal a un mensaje amigable
                 $errorData = json_decode($errBody, true);
                 $friendlyMessage = $this->getFriendlyErrorMessage($errorData);
                 throw new \Exception($friendlyMessage);
@@ -207,13 +203,11 @@ class PayPalController extends Controller
             $status = $captureData['status'] ?? null;
             Log::info("PayPal capture status: {$status}");
 
-            // Intentar extraer metadata del custom_id (varias ubicaciones posibles)
             $metadata = null;
             if (!empty($captureData['purchase_units'][0]['custom_id'])) {
                 $metadata = json_decode($captureData['purchase_units'][0]['custom_id'], true);
             }
 
-            // A veces custom_id viene dentro de payments->captures
             if (!$metadata) {
                 $captures = $captureData['purchase_units'][0]['payments']['captures'] ?? null;
                 if ($captures && isset($captures[0]['custom_id'])) {
@@ -359,17 +353,14 @@ class PayPalController extends Controller
     // Manejar el retorno público de PayPal (redireccionar al frontend)
     public function handleReturn(Request $request)
     {
-        // PayPal devuelve token=ORDER_ID en la query string
         $orderId = $request->query('token');
         $frontendUrl = env('APP_FRONTEND_URL', 'https://mangakaappwebfront-production.up.railway.app');
 
         if (!$orderId) {
             Log::warning('PayPal return called without token', $request->all());
-            // Si no hay token, redirigir al frontend al cart
             return redirect()->away($frontendUrl . '/cart');
         }
 
-        // Redirigir al frontend a la página que realizará la captura
         return redirect()->away($frontendUrl . '/paypal-return?token=' . urlencode($orderId));
     }
 }
