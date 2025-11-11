@@ -34,7 +34,7 @@ Las actividades que los clientes podrán realizar son las siguientes:
 ## LINKS:
 - Back: https://mangakaappweb-production.up.railway.app/login
 - usuario back: cyrigoyen969@gmail.com
-- Front: https://mangakaappwebfront-production-b10c.up.railway.app
+- Front: https://mangakaappwebfront-production.up.railway.app
 - Usuario De Prueba de MP:
   - TESTUSER87140068
   - NPQEXMCNE0
