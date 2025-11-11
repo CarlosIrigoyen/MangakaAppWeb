@@ -169,181 +169,158 @@ class PayPalController extends Controller
     }
 
     public function captureOrder($orderId)
-{
-    DB::beginTransaction();
-    try {
-        $accessToken = $this->getAccessToken();
-
-        Log::info("🎯 Capturando orden PayPal: " . $orderId);
-
-        $url = "{$this->paypalBaseUrl}/v2/checkout/orders/{$orderId}/capture";
-
-        // Enviar un JSON vacío explícito para evitar MALFORMED_REQUEST_JSON
-        $response = Http::withToken($accessToken)
-            ->withHeaders([
-                'Content-Type' => 'application/json',
-                'Prefer' => 'return=representation'
-            ])
-            // ->withBody('{}','application/json') asegura que PayPal reciba {}
-            ->withBody('{}', 'application/json')
-            ->post($url);
-
-        // Logging extendido para debugging
-        Log::info("PayPal capture HTTP status: " . $response->status());
-        Log::info("PayPal capture response body: " . $response->body());
-
-        $captureData = $response->json();
-
-        if (!$response->successful()) {
-            // Si PayPal devuelve error, registrar y lanzar excepción con cuerpo claro
-            $errBody = $response->body();
-            Log::error("PayPal capture error: HTTP {$response->status()} - {$errBody}");
-            throw new \Exception('Error capturando orden: ' . $errBody);
-        }
-
-        $status = $captureData['status'] ?? null;
-        Log::info("PayPal capture status: {$status}");
-
-        // Intentar extraer metadata del custom_id (varias ubicaciones posibles)
-        $metadata = null;
-        if (!empty($captureData['purchase_units'][0]['custom_id'])) {
-            $metadata = json_decode($captureData['purchase_units'][0]['custom_id'], true);
-        }
-
-        // A veces custom_id viene dentro de payments->captures
-        if (!$metadata) {
-            $captures = $captureData['purchase_units'][0]['payments']['captures'] ?? null;
-            if ($captures && isset($captures[0]['custom_id'])) {
-                $metadata = json_decode($captures[0]['custom_id'], true);
-            }
-        }
-
-        if (!$metadata) {
-            Log::error('No se encontró metadata en la orden capture: ' . json_encode($captureData));
-            throw new \Exception('No se encontró metadata en la orden');
-        }
-
-        $clienteId = $metadata['cliente_id'] ?? null;
-        $productos = $metadata['productos'] ?? [];
-
-        if (!$clienteId || empty($productos)) {
-            Log::error('Metadata incompleta: ' . json_encode($metadata));
-            throw new \Exception('Metadata incompleta');
-        }
-
-        // Crear factura y detalles
-        $factura = Factura::create([
-            'numero' => 'PP-' . time() . '-' . Str::random(6),
-            'cliente_id' => $clienteId,
-            'pagado' => true,
-        ]);
-
-        foreach ($productos as $prod) {
-            $subtotal = (float) $prod['cantidad'] * $prod['precio_unitario'];
-
-            DetalleFactura::create([
-                'factura_id' => $factura->id,
-                'tomo_id' => $prod['tomo_id'],
-                'cantidad' => (int) $prod['cantidad'],
-                'precio_unitario' => (float) $prod['precio_unitario'],
-                'subtotal' => $subtotal,
-            ]);
-
-            $tomo = Tomo::find($prod['tomo_id']);
-            if ($tomo) {
-                $stockAnterior = $tomo->stock;
-                $tomo->decrement('stock', $prod['cantidad']);
-                Log::info("📦 Stock actualizado - Tomo {$tomo->id}: {$stockAnterior} -> {$tomo->stock}");
-            }
-        }
-
-        DB::commit();
-
-        Log::info("✅ Factura {$factura->id} creada como PAGADA");
-
-        return response()->json(array_merge($captureData, [
-            'sandbox_mode' => true,
-            'factura_id' => $factura->id,
-            'factura_numero' => $factura->numero
-        ]));
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        Log::error('❌ Error en captureOrder: ' . $e->getMessage());
-        return response()->json([
-            'message' => 'Error capturando el pago: ' . $e->getMessage(),
-            'sandbox_mode' => true
-        ], 500);
-    }
-}
-
-
-   // public function webhook(Request $request)
-    //{
-      //  Log::info('📥 Webhook PayPal recibido:', $request->all());
-
-        //$payload = $request->all();
-        //$eventType = $payload['event_type'] ?? null;
-
-       // Log::info("🔔 Evento PayPal: {$eventType}");
-
-        //try {
-          //  if ($eventType === 'PAYMENT.CAPTURE.COMPLETED') {
-             //   return $this->handlePaymentCompleted($payload);
-           // }
-
-            //return response()->json(['status' => 'received'], 200);
-
-//        } catch (\Exception $e) {
-  //          Log::error('❌ Error en webhook: ' . $e->getMessage());
-    //        return response()->json(['error' => 'Processing failed'], 500);
-      //  }
-   // }
-
-    private function handlePaymentCompleted($payload)
     {
-        $customId = $payload['resource']['custom_id'] ?? null;
-        $metadata = $customId ? json_decode($customId, true) : null;
+        DB::beginTransaction();
+        try {
+            $accessToken = $this->getAccessToken();
 
-        if ($metadata) {
+            Log::info("🎯 Capturando orden PayPal: " . $orderId);
+
+            $url = "{$this->paypalBaseUrl}/v2/checkout/orders/{$orderId}/capture";
+
+            // Enviar un JSON vacío explícito para evitar MALFORMED_REQUEST_JSON
+            $response = Http::withToken($accessToken)
+                ->withHeaders([
+                    'Content-Type' => 'application/json',
+                    'Prefer' => 'return=representation'
+                ])
+                ->withBody('{}', 'application/json')
+                ->post($url);
+
+            // Logging extendido para debugging
+            Log::info("PayPal capture HTTP status: " . $response->status());
+            Log::info("PayPal capture response body: " . $response->body());
+
+            $captureData = $response->json();
+
+            if (!$response->successful()) {
+                // Si PayPal devuelve error, registrar y lanzar excepción con cuerpo claro
+                $errBody = $response->body();
+                Log::error("PayPal capture error: HTTP {$response->status()} - {$errBody}");
+                
+                // Convertir el error de PayPal a un mensaje amigable
+                $errorData = json_decode($errBody, true);
+                $friendlyMessage = $this->getFriendlyErrorMessage($errorData);
+                throw new \Exception($friendlyMessage);
+            }
+
+            $status = $captureData['status'] ?? null;
+            Log::info("PayPal capture status: {$status}");
+
+            // Intentar extraer metadata del custom_id (varias ubicaciones posibles)
+            $metadata = null;
+            if (!empty($captureData['purchase_units'][0]['custom_id'])) {
+                $metadata = json_decode($captureData['purchase_units'][0]['custom_id'], true);
+            }
+
+            // A veces custom_id viene dentro de payments->captures
+            if (!$metadata) {
+                $captures = $captureData['purchase_units'][0]['payments']['captures'] ?? null;
+                if ($captures && isset($captures[0]['custom_id'])) {
+                    $metadata = json_decode($captures[0]['custom_id'], true);
+                }
+            }
+
+            if (!$metadata) {
+                Log::error('No se encontró metadata en la orden capture: ' . json_encode($captureData));
+                throw new \Exception('No se encontró información de la orden. Por favor, contacta a soporte.');
+            }
+
             $clienteId = $metadata['cliente_id'] ?? null;
             $productos = $metadata['productos'] ?? [];
 
-            if ($clienteId && !empty($productos)) {
-                DB::transaction(function () use ($clienteId, $productos) {
-                    // ✅ CREAR FACTURA CON PAGADO = TRUE
-                    $factura = Factura::create([
-                        'numero' => 'PP-WH-' . time() . '-' . Str::random(6),
-                        'cliente_id' => $clienteId,
-                        'pagado' => true,
-                    ]);
-
-                    foreach ($productos as $prod) {
-                        $subtotal = (float) $prod['cantidad'] * $prod['precio_unitario'];
-
-                        DetalleFactura::create([
-                            'factura_id' => $factura->id,
-                            'tomo_id' => $prod['tomo_id'],
-                            'cantidad' => (int) $prod['cantidad'],
-                            'precio_unitario' => (float) $prod['precio_unitario'],
-                            'subtotal' => $subtotal,
-                        ]);
-
-                        $tomo = Tomo::find($prod['tomo_id']);
-                        if ($tomo) {
-                            $tomo->decrement('stock', $prod['cantidad']);
-                        }
-                    }
-
-                    Log::info("✅ Factura {$factura->id} creada como PAGADA via webhook");
-                });
-
-                return response()->json(['status' => 'success'], 200);
+            if (!$clienteId || empty($productos)) {
+                Log::error('Metadata incompleta: ' . json_encode($metadata));
+                throw new \Exception('Información de compra incompleta. Por favor, intenta nuevamente.');
             }
+
+            // Crear factura y detalles
+            $factura = Factura::create([
+                'numero' => 'PP-' . time() . '-' . Str::random(6),
+                'cliente_id' => $clienteId,
+                'pagado' => true,
+            ]);
+
+            foreach ($productos as $prod) {
+                $subtotal = (float) $prod['cantidad'] * $prod['precio_unitario'];
+
+                DetalleFactura::create([
+                    'factura_id' => $factura->id,
+                    'tomo_id' => $prod['tomo_id'],
+                    'cantidad' => (int) $prod['cantidad'],
+                    'precio_unitario' => (float) $prod['precio_unitario'],
+                    'subtotal' => $subtotal,
+                ]);
+
+                $tomo = Tomo::find($prod['tomo_id']);
+                if ($tomo) {
+                    $stockAnterior = $tomo->stock;
+                    $tomo->decrement('stock', $prod['cantidad']);
+                    Log::info("📦 Stock actualizado - Tomo {$tomo->id}: {$stockAnterior} -> {$tomo->stock}");
+                }
+            }
+
+            DB::commit();
+
+            Log::info("✅ Factura {$factura->id} creada como PAGADA");
+
+            return response()->json(array_merge($captureData, [
+                'sandbox_mode' => true,
+                'factura_id' => $factura->id,
+                'factura_numero' => $factura->numero
+            ]));
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('❌ Error en captureOrder: ' . $e->getMessage());
+            return response()->json([
+                'message' => $e->getMessage(),
+                'sandbox_mode' => true,
+                'error_type' => 'payment_failed'
+            ], 500);
+        }
+    }
+
+    /**
+     * Convierte un error técnico de PayPal en un mensaje amigable para el usuario.
+     */
+    private function getFriendlyErrorMessage($errorData)
+    {
+        if (!isset($errorData['details']) || !is_array($errorData['details'])) {
+            return 'Error al procesar el pago. Por favor, intenta con otro método de pago.';
         }
 
-        Log::error('❌ No se pudo procesar el webhook');
-        return response()->json(['error' => 'Missing data'], 400);
+        foreach ($errorData['details'] as $detail) {
+            $issue = $detail['issue'] ?? '';
+            
+            switch ($issue) {
+                case 'INSTRUMENT_DECLINED':
+                    return 'La tarjeta fue rechazada. Por favor, intenta con otra tarjeta o método de pago.';
+                    
+                case 'PAYER_CANNOT_PAY':
+                    return 'Este método de pago no puede completar la transacción. Por favor, usa otro método.';
+                    
+                case 'TRANSACTION_REFUSED':
+                    return 'La transacción fue rechazada. Por favor, verifica los datos de tu tarjeta.';
+                    
+                case 'INSUFFICIENT_FUNDS':
+                    return 'Fondos insuficientes en la tarjeta. Por favor, intenta con otra tarjeta.';
+                    
+                case 'CVV_FAILURE':
+                    return 'El código de seguridad (CVV) es incorrecto. Por favor, verifica e intenta nuevamente.';
+                    
+                case 'EXPIRED_CARD':
+                    return 'La tarjeta ha expirado. Por favor, usa otra tarjeta.';
+                    
+                case '3D_SECURE_ERROR':
+                    return 'Error en la verificación de seguridad. Por favor, intenta nuevamente.';
+                    
+                default:
+                    return 'Error al procesar el pago. Por favor, intenta con otro método de pago.';
+            }
+        }
+        
+        return 'Error al procesar el pago. Por favor, intenta con otro método de pago.';
     }
 
     public function getOrder($orderId)
