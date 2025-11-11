@@ -94,7 +94,7 @@ class PayPalController extends Controller
             // 3. Crear orden en PayPal con metadata
             $accessToken = $this->getAccessToken();
 
-            $frontendUrl = env('APP_FRONTEND_URL', 'https://mangakaappwebfront-production-b10c.up.railway.app');
+            $frontendUrl = env('APP_FRONTEND_URL', 'https://mangakaappwebfront-production.up.railway.app');
 
             $orderData = [
                 'intent' => 'CAPTURE',
