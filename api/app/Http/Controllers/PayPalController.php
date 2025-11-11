@@ -384,7 +384,7 @@ class PayPalController extends Controller
     {
         // PayPal devuelve token=ORDER_ID en la query string
         $orderId = $request->query('token');
-        $frontendUrl = env('APP_FRONTEND_URL', 'https://mangakaappwebfront-production-b10c.up.railway.app');
+        $frontendUrl = env('APP_FRONTEND_URL', 'https://mangakaappwebfront-production.up.railway.app');
 
         if (!$orderId) {
             Log::warning('PayPal return called without token', $request->all());
