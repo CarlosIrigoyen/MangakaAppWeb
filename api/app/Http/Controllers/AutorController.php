@@ -11,6 +11,7 @@ class AutorController extends Controller
     /**
      * Mostrar listado de autores según estado: activo o inactivo.
      */
+    //prueba de controller
     public function index(Request $request)
     {
         // Obtenemos el filtro de la query string, por defecto 'activo'

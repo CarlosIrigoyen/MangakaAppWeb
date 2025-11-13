@@ -1,4 +1,5 @@
 <?php
+// app/Models/Cliente.php
 
 namespace App\Models;
 
@@ -22,15 +23,26 @@ class Cliente extends Authenticatable
         'remember_token',
     ];
 
-    // Relación con facturas
     public function facturas()
     {
         return $this->hasMany(Factura::class);
     }
 
-    // AGREGAR ESTA RELACIÓN CON EL CARRITO
     public function carritos()
     {
         return $this->hasMany(Carrito::class);
+    }
+
+    // Agregar relación con suscripciones
+    public function suscripciones()
+    {
+        return $this->hasMany(ClienteMangaSuscripcion::class);
+    }
+
+    // Obtener mangas suscritos
+    public function mangasSuscritos()
+    {
+        return $this->belongsToMany(Manga::class, 'cliente_manga_suscripciones', 'cliente_id', 'manga_id')
+                    ->withTimestamps();
     }
 }

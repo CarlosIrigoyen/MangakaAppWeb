@@ -54,4 +54,9 @@ class Manga extends Model
     {
         return $this->hasMany(Tomo::class, 'manga_id');
     }
+    /** Relación hasMany con ClienteMangaSuscripcion */
+    public function suscripciones()
+    {
+        return $this->hasMany(ClienteMangaSuscripcion::class);
+    }
 }

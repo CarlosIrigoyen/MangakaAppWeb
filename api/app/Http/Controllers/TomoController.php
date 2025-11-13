@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 use Cloudinary\Api\Upload\UploadApi;
-
+use \App\Services\NotificacionService;
 class TomoController extends Controller
 {
      /**
@@ -213,6 +213,10 @@ class TomoController extends Controller
             'public_id' => $upload['public_id'],
             'activo' => true,
         ]);
+        //envio de notifcaciones
+                   // Enviar notificaciones a suscriptores
+           $notificacionService = new NotificacionService();
+           $notificacionService->notificarNuevoTomo($validated['manga_id'], $nextNumero);
 
         // se borra el archivo temporal
         @unlink($temp);

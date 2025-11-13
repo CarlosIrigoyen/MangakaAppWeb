@@ -11,6 +11,7 @@
         "cloudinary/cloudinary_php": "^3.1",
         "intervention/image-laravel": "^1.5",
         "jeroennoten/laravel-adminlte": "^3.14",
+        "kreait/firebase-php": "^7.23",
         "laravel-lang/lang": "^12.17",
         "laravel/framework": "^11.31",
         "laravel/jetstream": "^5.3",

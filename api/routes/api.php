@@ -9,6 +9,7 @@ use App\Http\Controllers\MercadoPagoController;
 use App\Http\Controllers\PayPalController;
 use App\Http\Controllers\CarritoController;
 use App\Http\Controllers\FiltroController;
+use App\Http\Controllers\SuscripcionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -66,4 +67,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/carrito/guardar', [CarritoController::class, 'guardarCarrito']);
     Route::get('/carrito/obtener/{clienteId}', [CarritoController::class, 'obtenerCarrito']);
     Route::delete('/carrito/limpiar/{clienteId}', [CarritoController::class, 'limpiarCarrito']);
+
+    // Suscripciones - RUTAS COMPLETAS
+    Route::prefix('suscripciones')->group(function () {
+        Route::get('/mangas-disponibles', [SuscripcionController::class, 'mangasDisponibles']);
+        Route::get('/mis-suscripciones', [SuscripcionController::class, 'misSuscripciones']);
+        Route::post('/actualizar-suscripciones', [SuscripcionController::class, 'actualizarSuscripciones']);
+        Route::post('/suscripcion-automatica', [SuscripcionController::class, 'manejarSuscripcionAutomatica']);
+        Route::post('/suscribir', [SuscripcionController::class, 'suscribir']);
+        Route::post('/desuscribir', [SuscripcionController::class, 'desuscribir']);
+        Route::post('/actualizar-token', [SuscripcionController::class, 'actualizarToken']);
+
+    });
 });
