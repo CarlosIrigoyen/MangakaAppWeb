@@ -12,31 +12,54 @@ use Kreait\Firebase\Exception\MessagingException;
 class NotificacionService
 {
     protected $messaging = null;
+    protected $credentialsPath = null;
 
     public function __construct()
     {
         Log::info("🔄 Inicializando NotificacionService...");
 
-        $credentialPath = env('FIREBASE_CREDENTIALS');
+        // USAR SOLO FIREBASE_CREDENTIALS_BASE64
+        $base64 = env('FIREBASE_CREDENTIALS_BASE64');
 
-        if (empty($credentialPath)) {
-            Log::error("❌ FIREBASE_CREDENTIALS no está configurado en .env");
-            return;
-        }
-
-        $absolutePath = base_path($credentialPath);
-
-        if (!file_exists($absolutePath)) {
-            Log::error("❌ Archivo de credenciales no encontrado: {$absolutePath}");
+        if (empty($base64)) {
+            Log::error("❌ FIREBASE_CREDENTIALS_BASE64 no está configurada en el entorno");
             return;
         }
 
         try {
-            $factory = (new Factory)->withServiceAccount($absolutePath);
+            // Decodificar base64 a JSON
+            $json = base64_decode($base64, true);
+            if ($json === false) {
+                throw new \RuntimeException("Base64 inválido en FIREBASE_CREDENTIALS_BASE64");
+            }
+
+            // Validar JSON decodificado
+            $decoded = json_decode($json, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new \RuntimeException("Contenido de credenciales no es JSON válido: " . json_last_error_msg());
+            }
+
+            // Escribir archivo temporal en storage (no versionado)
+            $tempPath = storage_path('app/firebase_credentials.json');
+            if (!is_dir(dirname($tempPath))) {
+                mkdir(dirname($tempPath), 0700, true);
+            }
+
+            file_put_contents($tempPath, $json, LOCK_EX);
+            @chmod($tempPath, 0600);
+
+            $this->credentialsPath = $tempPath;
+            Log::info("📄 Archivo temporal Firebase creado en: " . $tempPath);
+
+            // Inicializar Firebase Admin SDK
+            $factory = (new Factory)->withServiceAccount($tempPath);
             $this->messaging = $factory->createMessaging();
+
             Log::info("✅ SDK Firebase inicializado correctamente");
+
         } catch (\Throwable $e) {
             Log::error("❌ Error inicializando Firebase: " . $e->getMessage());
+            $this->messaging = null;
         }
     }
 
@@ -52,7 +75,6 @@ class NotificacionService
             return false;
         }
 
-        // Obtener tokens
         $tokens = ClienteMangaSuscripcion::where('manga_id', $mangaId)
                     ->whereNotNull('fcm_token')
                     ->where('fcm_token', '!=', '')
@@ -199,7 +221,7 @@ class NotificacionService
 
             Log::info("🛠️ Creando mensaje...");
 
-            // ✅ MÉTODO CORREGIDO: Usar sendMulticast incluso para un solo token
+            // Usar sendMulticast incluso para un solo token
             $message = CloudMessage::new()
                 ->withNotification($notification)
                 ->withData($data)
@@ -263,7 +285,6 @@ class NotificacionService
         }
 
         try {
-            // Usar el mismo método que probarNotificacion pero más simple
             $message = CloudMessage::new()
                 ->withData(['test' => 'true', 'timestamp' => now()->toISOString()])
                 ->withHighestPossiblePriority();
@@ -301,8 +322,8 @@ class NotificacionService
         try {
             $estado = [
                 'firebase_initialized' => !is_null($this->messaging),
-                'credentials_path' => base_path(env('FIREBASE_CREDENTIALS')),
-                'credentials_exists' => file_exists(base_path(env('FIREBASE_CREDENTIALS'))),
+                'credentials_path' => $this->credentialsPath,
+                'credentials_exists' => $this->credentialsPath ? file_exists($this->credentialsPath) : false,
                 'environment' => app()->environment(),
                 'timestamp' => now()->toISOString()
             ];
