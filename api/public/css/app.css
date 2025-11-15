@@ -1,0 +1,39 @@
+/* NAVBAR: asegurar contraste y foco visible */
+.main-header.navbar {
+  /* si tu navbar es clara (navbar-white), forzamos un fondo ligeramente distinto para contraste */
+  background-color: #ffffff; /* si usas light, mantené blanco; si es muy claro y texto es claro, usa otro */
+}
+
+/* Forzar color legible en links y spans dentro de la navbar */
+.main-header .nav-link,
+.main-header .navbar-text,
+.main-header .user-panel a,
+.main-header .navbar-nav .dropdown-item,
+.main-header .navbar-brand {
+  color: #0b0b0b !important; /* texto oscuro para sobre fondos claros */
+}
+
+/* Si tu navbar es oscura (navbar-dark): usar texto blanco */
+.main-header.navbar.navbar-dark .nav-link,
+.main-header.navbar.navbar-dark .navbar-text {
+  color: #ffffff !important;
+}
+
+/* Subrayar enlaces cuando sólo usan color para distinguirse */
+.main-header .nav-link { text-decoration: none; }
+.main-header .nav-link:focus,
+.main-header .nav-link:hover { text-decoration: underline; }
+
+/* Indicador de foco accesible */
+:focus-visible {
+  outline: 3px solid #ffd54f;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Asegura que cualquier <span> o <p> en navbar herede color legible */
+.main-header .nav-link span,
+.main-header .navbar-text p,
+.main-header .navbar-text span {
+  color: inherit;
+}
