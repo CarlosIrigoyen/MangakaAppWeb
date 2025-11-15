@@ -161,18 +161,6 @@
                                 @foreach($topMangas as $index => $manga)
                                     <div class="top-manga-item">
                                         <div class="manga-rank">{{ $index + 1 }}</div>
-
-                                        @if(!empty($manga->portada))
-                                            <img src="{{ asset('storage/' . $manga->portada) }}"
-                                                 class="manga-portada"
-                                                 alt="{{ $manga->titulo }}"
-                                                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNzAiIHZpZXdCb3g9IjAgMCA1MCA3MCI+PHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjcwIiBmaWxsPSIjRjBGMEYwIi8+PHBhdGggZD0iTTIwIDM1TDI1IDMwTDM1IDQwTDMwIDQ1TDIwIDM1WiIgZmlsbD0iIzk5OTk5OSIvPjwvc3ZnPg=='">
-                                        @else
-                                            <div class="manga-portada bg-light d-flex align-items-center justify-content-center text-muted">
-                                                <i class="fas fa-book fa-lg"></i>
-                                            </div>
-                                        @endif
-
                                         <div class="manga-info">
                                             <div class="manga-titulo" title="{{ $manga->titulo }}">{{ $manga->titulo }}</div>
                                             <div class="manga-stats">
