@@ -12389,27 +12389,27 @@ body:not(.layout-fixed) .main-sidebar .sidebar {
 }
 
 .navbar-light .form-control-navbar::-webkit-input-placeholder {
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 1);
 }
 
 .navbar-light .form-control-navbar::-moz-placeholder {
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 1);
 }
 
 .navbar-light .form-control-navbar:-ms-input-placeholder {
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 1);
 }
 
 .navbar-light .form-control-navbar::-ms-input-placeholder {
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 1);
 }
 
 .navbar-light .form-control-navbar::placeholder {
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 1);
 }
 
 .navbar-light .form-control-navbar + .input-group-append > .btn-navbar {
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 1);
 }
 
 .navbar-light .form-control-navbar:focus,
@@ -12421,7 +12421,7 @@ body:not(.layout-fixed) .main-sidebar .sidebar {
 
 .navbar-light .navbar-search-block .form-control-navbar:focus,
 .navbar-light .navbar-search-block .form-control-navbar:focus + .input-group-append .btn-navbar {
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 1);
 }
 
 .navbar-search-block {
