@@ -1,7 +1,7 @@
 /* NAVBAR: asegurar contraste y foco visible */
 .main-header.navbar {
   /* si tu navbar es clara (navbar-white), forzamos un fondo ligeramente distinto para contraste */
-  background-color: #ffffff; /* si usas light, mantené blanco; si es muy claro y texto es claro, usa otro */
+  background-color: #1f2937; /* si usas light, mantené blanco; si es muy claro y texto es claro, usa otro */
 }
 
 /* Forzar color legible en links y spans dentro de la navbar */
