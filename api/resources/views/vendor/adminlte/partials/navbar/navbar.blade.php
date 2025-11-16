@@ -2,7 +2,10 @@
 
 <nav class="main-header navbar
     {{ config('adminlte.classes_topnav_nav', 'navbar-expand') }}
-    {{ config('adminlte.classes_topnav', 'navbar-white navbar-dark') }}">
+    {{ config('adminlte.classes_topnav', 'navbar-white navbar-light') }}"
+    role="navigation"
+    aria-label="Barra de navegación principal">
+    
 
     {{-- Navbar left links --}}
     <ul class="navbar-nav">
