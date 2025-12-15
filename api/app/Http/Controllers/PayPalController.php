@@ -19,12 +19,15 @@ class PayPalController extends Controller
 
     public function __construct()
     {
-        // Forzar sandbox
-        $this->paypalBaseUrl = 'https://api.sandbox.paypal.com';
+        // FORZAR sandbox aquí solo para pruebas; en producción cambiar a https://api.paypal.com
+        $this->paypalBaseUrl = env('PAYPAL_BASE_URL', 'https://api.sandbox.paypal.com');
         $this->clientId = env('PAYPAL_CLIENT_ID');
         $this->clientSecret = env('PAYPAL_CLIENT_SECRET');
     }
 
+    /**
+     * Obtiene access token OAuth2 de PayPal.
+     */
     private function getAccessToken()
     {
         try {
@@ -35,21 +38,24 @@ class PayPalController extends Controller
                 ]);
 
             if ($response->successful()) {
-                return $response->json()['access_token'];
+                $json = $response->json();
+                return $json['access_token'] ?? null;
             }
 
             Log::error('getAccessToken failed, body: ' . $response->body());
-            throw new \Exception('No se pudo obtener el access token: ' . $response->body());
-
+            throw new \Exception('No se pudo obtener access token: ' . $response->body());
         } catch (\Exception $e) {
             Log::error('Error en getAccessToken: ' . $e->getMessage());
             throw $e;
         }
     }
 
+    /**
+     * Crea la orden en PayPal. Guarda metadata completa en BD y envía custom_id corto a PayPal.
+     */
     public function createOrder(Request $request)
     {
-        Log::info("📥 createOrder PayPal: ", $request->all());
+        Log::info("📥 createOrder PayPal payload recibido: ", $request->all());
 
         try {
             $request->validate([
@@ -64,7 +70,7 @@ class PayPalController extends Controller
             $clienteId = $request->input('cliente_id');
             $productos = $request->input('productos', []);
 
-            // 1. Verificar stock (sin crear factura todavía)
+            // 1) Validar stock
             foreach ($productos as $prod) {
                 $tomo = Tomo::find($prod['tomo_id']);
                 if (!$tomo || $tomo->stock < $prod['cantidad']) {
@@ -72,28 +78,43 @@ class PayPalController extends Controller
                 }
             }
 
-            // 2. Calcular total y preparar items
+            // 2) Preparar items y calcular total
             $totalAmount = 0;
             $items = [];
 
             foreach ($productos as $prod) {
-                $subtotal = (float) $prod['cantidad'] * $prod['precio_unitario'];
+                $cantidad = (int) $prod['cantidad'];
+                $precioUnitario = (float) $prod['precio_unitario'];
+                $subtotal = $cantidad * $precioUnitario;
                 $totalAmount += $subtotal;
 
                 $items[] = [
                     'name' => substr($prod['titulo'], 0, 127),
-                    'quantity' => (string) $prod['cantidad'],
+                    'quantity' => (string) $cantidad,
                     'unit_amount' => [
                         'currency_code' => 'USD',
-                        'value' => number_format($prod['precio_unitario'], 2, '.', '')
+                        'value' => number_format($precioUnitario, 2, '.', '')
                     ],
                     'category' => 'DIGITAL_GOODS'
                 ];
             }
 
-            // 3. Crear orden en PayPal con metadata
-            $accessToken = $this->getAccessToken();
+            // 3) Guardar metadata completa en BD
+            $metaId = DB::table('orden_metadata')->insertGetId([
+                'cliente_id' => $clienteId,
+                'productos' => json_encode($productos, JSON_UNESCAPED_UNICODE),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
+            // 4) custom_id corto y seguro para PayPal
+            $customId = "meta_{$metaId}";
+            if (strlen($customId) > 127) {
+                $customId = substr($customId, 0, 127);
+            }
+
+            // 5) Armar payload de la orden
+            $accessToken = $this->getAccessToken();
             $frontendUrl = env('APP_FRONTEND_URL', 'https://mangakaappwebfront-production.up.railway.app');
 
             $orderData = [
@@ -102,10 +123,7 @@ class PayPalController extends Controller
                     [
                         'reference_id' => 'cliente_' . $clienteId,
                         'description' => 'Compra de mangas - MangakaBaka',
-                        'custom_id' => json_encode([
-                            'cliente_id' => $clienteId,
-                            'productos' => $productos
-                        ]),
+                        'custom_id' => $customId,
                         'amount' => [
                             'currency_code' => 'USD',
                             'value' => number_format($totalAmount, 2, '.', ''),
@@ -128,6 +146,9 @@ class PayPalController extends Controller
                 ]
             ];
 
+            // LOG para depuración: comprobar que custom_id es corto (ej: "meta_123")
+            Log::info('🧾 PayPal order payload (antes de enviar): ' . json_encode($orderData, JSON_UNESCAPED_UNICODE));
+
             $response = Http::withToken($accessToken)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
@@ -148,26 +169,27 @@ class PayPalController extends Controller
                 throw new \Exception('No se encontró el link de aprobación');
             }
 
-            Log::info("✅ Orden PayPal creada - ID: {$responseData['id']}");
+            Log::info("✅ Orden PayPal creada - ID: {$responseData['id']} - metaId: {$metaId}");
 
             return response()->json([
                 'id' => $responseData['id'],
                 'status' => $responseData['status'],
                 'approve_url' => $approveLink['href'],
-                'sandbox_mode' => true,
-                'message' => 'MODO PRUEBAS - No se realizará cargo real'
+                'sandbox_mode' => str_contains($this->paypalBaseUrl, 'sandbox'),
+                'message' => 'Orden creada. Redirigir a approve_url.'
             ]);
-
         } catch (\Exception $e) {
             Log::error('❌ Error en createOrder: ' . $e->getMessage());
-
             return response()->json([
                 'message' => 'Error creando la orden de PayPal: ' . $e->getMessage(),
-                'sandbox_mode' => true
+                'sandbox_mode' => str_contains($this->paypalBaseUrl, 'sandbox')
             ], 500);
         }
     }
 
+    /**
+     * Captura una orden por orderId (usado por frontend o por procesos internos).
+     */
     public function captureOrder($orderId)
     {
         DB::beginTransaction();
@@ -194,39 +216,33 @@ class PayPalController extends Controller
             if (!$response->successful()) {
                 $errBody = $response->body();
                 Log::error("PayPal capture error: HTTP {$response->status()} - {$errBody}");
-                
                 $errorData = json_decode($errBody, true);
                 $friendlyMessage = $this->getFriendlyErrorMessage($errorData);
                 throw new \Exception($friendlyMessage);
             }
 
-            $status = $captureData['status'] ?? null;
-            Log::info("PayPal capture status: {$status}");
-
-            $metadata = null;
-            if (!empty($captureData['purchase_units'][0]['custom_id'])) {
-                $metadata = json_decode($captureData['purchase_units'][0]['custom_id'], true);
+            // Recuperar custom_id
+            $customId = $captureData['purchase_units'][0]['custom_id'] ?? null;
+            if (!$customId) {
+                // Intentar otras rutas si aplica
+                $customId = $captureData['purchase_units'][0]['payments']['captures'][0]['seller_receivable_breakdown']['custom_id'] ?? null;
             }
+
+            if (!$customId || !str_starts_with($customId, 'meta_')) {
+                throw new \Exception("No se pudo recuperar metadata de la orden (custom_id inválido).");
+            }
+
+            $metaId = (int) str_replace('meta_', '', $customId);
+
+            // Leer metadata desde BD
+            $metadata = DB::table('orden_metadata')->where('id', $metaId)->first();
 
             if (!$metadata) {
-                $captures = $captureData['purchase_units'][0]['payments']['captures'] ?? null;
-                if ($captures && isset($captures[0]['custom_id'])) {
-                    $metadata = json_decode($captures[0]['custom_id'], true);
-                }
+                throw new \Exception("Metadata no encontrada para la orden.");
             }
 
-            if (!$metadata) {
-                Log::error('No se encontró metadata en la orden capture: ' . json_encode($captureData));
-                throw new \Exception('No se encontró información de la orden. Por favor, contacta a soporte.');
-            }
-
-            $clienteId = $metadata['cliente_id'] ?? null;
-            $productos = $metadata['productos'] ?? [];
-
-            if (!$clienteId || empty($productos)) {
-                Log::error('Metadata incompleta: ' . json_encode($metadata));
-                throw new \Exception('Información de compra incompleta. Por favor, intenta nuevamente.');
-            }
+            $clienteId = $metadata->cliente_id;
+            $productos = json_decode($metadata->productos, true);
 
             // Crear factura y detalles
             $factura = Factura::create([
@@ -259,64 +275,131 @@ class PayPalController extends Controller
             Log::info("✅ Factura {$factura->id} creada como PAGADA");
 
             return response()->json(array_merge($captureData, [
-                'sandbox_mode' => true,
+                'sandbox_mode' => str_contains($this->paypalBaseUrl, 'sandbox'),
                 'factura_id' => $factura->id,
                 'factura_numero' => $factura->numero
             ]));
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('❌ Error en captureOrder: ' . $e->getMessage());
             return response()->json([
                 'message' => $e->getMessage(),
-                'sandbox_mode' => true,
+                'sandbox_mode' => str_contains($this->paypalBaseUrl, 'sandbox'),
                 'error_type' => 'payment_failed'
             ], 500);
         }
     }
 
     /**
-     * Convierte un error técnico de PayPal en un mensaje amigable para el usuario.
+     * Webhook public endpoint para PayPal.
+     * Requiere que configures PAYPAL_WEBHOOK_ID en .env con el ID del webhook creado en PayPal.
+     * Verifica la firma mediante /v1/notifications/verify-webhook-signature
      */
-    private function getFriendlyErrorMessage($errorData)
+    public function webhook(Request $request)
     {
-        if (!isset($errorData['details']) || !is_array($errorData['details'])) {
-            return 'Error al procesar el pago. Por favor, intenta con otro método de pago.';
-        }
+        // Registrar cabeceras y body
+        Log::info('🔔 PayPal webhook recibido', [
+            'headers' => $request->headers->all(),
+            'body' => $request->getContent()
+        ]);
 
-        foreach ($errorData['details'] as $detail) {
-            $issue = $detail['issue'] ?? '';
-            
-            switch ($issue) {
-                case 'INSTRUMENT_DECLINED':
-                    return 'La tarjeta fue rechazada. Por favor, intenta con otra tarjeta o método de pago.';
-                    
-                case 'PAYER_CANNOT_PAY':
-                    return 'Este método de pago no puede completar la transacción. Por favor, usa otro método.';
-                    
-                case 'TRANSACTION_REFUSED':
-                    return 'La transacción fue rechazada. Por favor, verifica los datos de tu tarjeta.';
-                    
-                case 'INSUFFICIENT_FUNDS':
-                    return 'Fondos insuficientes en la tarjeta. Por favor, intenta con otra tarjeta.';
-                    
-                case 'CVV_FAILURE':
-                    return 'El código de seguridad (CVV) es incorrecto. Por favor, verifica e intenta nuevamente.';
-                    
-                case 'EXPIRED_CARD':
-                    return 'La tarjeta ha expirado. Por favor, usa otra tarjeta.';
-                    
-                case '3D_SECURE_ERROR':
-                    return 'Error en la verificación de seguridad. Por favor, intenta nuevamente.';
-                    
-                default:
-                    return 'Error al procesar el pago. Por favor, intenta con otro método de pago.';
+        try {
+            $transmissionId = $request->header('PayPal-Transmission-Id');
+            $transmissionTime = $request->header('PayPal-Transmission-Time');
+            $certUrl = $request->header('PayPal-Cert-Url');
+            $authAlgo = $request->header('PayPal-Auth-Algo');
+            $transmissionSig = $request->header('PayPal-Transmission-Sig');
+            $webhookId = env('PAYPAL_WEBHOOK_ID'); // asegurar que esté en .env
+
+            if (!$webhookId) {
+                Log::warning('PAYPAL_WEBHOOK_ID no configurado en .env');
+                return response()->json(['message' => 'Webhook not configured'], 500);
             }
+
+            $body = json_decode($request->getContent(), true);
+
+            $verifyPayload = [
+                'transmission_id' => $transmissionId,
+                'transmission_time' => $transmissionTime,
+                'cert_url' => $certUrl,
+                'auth_algo' => $authAlgo,
+                'transmission_sig' => $transmissionSig,
+                'webhook_id' => $webhookId,
+                'webhook_event' => $body
+            ];
+
+            $accessToken = $this->getAccessToken();
+
+            $verifyResponse = Http::withToken($accessToken)
+                ->post("{$this->paypalBaseUrl}/v1/notifications/verify-webhook-signature", $verifyPayload);
+
+            $verifyJson = $verifyResponse->json();
+            Log::info('🔍 PayPal webhook verify response: ' . json_encode($verifyJson));
+
+            if (!($verifyResponse->successful() && ($verifyJson['verification_status'] ?? '') === 'SUCCESS')) {
+                Log::warning('Webhook verification failed', ['verify' => $verifyJson]);
+                return response()->json(['message' => 'Invalid webhook signature'], 400);
+            }
+
+            // Webhook verificado: manejar eventos importantes
+            $eventType = $body['event_type'] ?? null;
+            $resource = $body['resource'] ?? [];
+
+            Log::info("Webhook event verified: {$eventType}");
+
+            switch ($eventType) {
+                case 'PAYMENT.CAPTURE.COMPLETED':
+                case 'PAYMENT.CAPTURE.DENIED':
+                case 'CHECKOUT.ORDER.APPROVED':
+                case 'CHECKOUT.ORDER.COMPLETED':
+                    // Intentamos obtener custom_id desde resource o purchase_units
+                    $customId = null;
+
+                    if (!empty($resource['custom_id'])) {
+                        $customId = $resource['custom_id'];
+                    } elseif (!empty($resource['supplementary_data']['related_ids']['order_id'])) {
+                        // fallback (no siempre presente)
+                        $customId = $resource['supplementary_data']['related_ids']['order_id'];
+                    } elseif (!empty($resource['purchase_units'][0]['custom_id'])) {
+                        $customId = $resource['purchase_units'][0]['custom_id'];
+                    } elseif (!empty($resource['invoice_id'])) {
+                        $customId = $resource['invoice_id'];
+                    }
+
+                    Log::info('Webhook extracted custom_id: ' . json_encode($customId));
+
+                    // Si encontramos custom_id con prefijo meta_x intentamos procesar
+                    if ($customId && is_string($customId) && str_starts_with($customId, 'meta_')) {
+                        $metaId = (int) str_replace('meta_', '', $customId);
+                        $metadata = DB::table('orden_metadata')->where('id', $metaId)->first();
+
+                        if ($metadata) {
+                            // Aquí podés implementar la misma lógica de captureOrder para crear la factura
+                            // IMPORTANTE: hacerlo idempotente (verificar si ya existe factura para esta orden)
+                            Log::info("Webhook: metadata encontrada para metaId {$metaId}");
+                            // Ejemplo: podrías marcar la metadata como 'webhook_processed' en una columna adicional
+                        } else {
+                            Log::warning("Webhook: metadata NO encontrada para metaId {$metaId}");
+                        }
+                    } else {
+                        Log::info('Webhook: custom_id no válido o no presente - no se procesa automáticamente.');
+                    }
+
+                    break;
+                default:
+                    Log::info("Webhook evento no manejado: {$eventType}");
+            }
+
+            return response()->json(['status' => 'ok']);
+        } catch (\Exception $e) {
+            Log::error('❌ Error en webhook PayPal: ' . $e->getMessage());
+            return response()->json(['message' => $e->getMessage()], 500);
         }
-        
-        return 'Error al procesar el pago. Por favor, intenta con otro método de pago.';
     }
 
+    /**
+     * Obtener orden (debug)
+     */
     public function getOrder($orderId)
     {
         try {
@@ -325,32 +408,36 @@ class PayPalController extends Controller
             $response = Http::withToken($accessToken)
                 ->get("{$this->paypalBaseUrl}/v2/checkout/orders/{$orderId}");
 
-            return response()->json(array_merge($response->json(), ['sandbox_mode' => true]));
+            return response()->json(array_merge($response->json(), ['sandbox_mode' => str_contains($this->paypalBaseUrl, 'sandbox')]));
         } catch (\Exception $e) {
             return response()->json([
                 'error' => $e->getMessage(),
-                'sandbox_mode' => true
+                'sandbox_mode' => str_contains($this->paypalBaseUrl, 'sandbox')
             ], 500);
         }
     }
 
+    /**
+     * Devuelve config / debug info (útil en dev)
+     */
     public function checkConfig()
     {
         return response()->json([
             'paypal_base_url' => $this->paypalBaseUrl,
-            'client_id_prefix' => substr($this->clientId, 0, 10) . '...',
-            'mode' => 'SANDBOX FORZADO',
-            'status' => 'Configurado para pruebas'
+            'client_id_prefix' => $this->clientId ? substr($this->clientId, 0, 10) . '...' : null,
+            'mode' => str_contains($this->paypalBaseUrl, 'sandbox') ? 'SANDBOX' : 'LIVE',
+            'status' => 'OK'
         ]);
     }
 
-    // Alias para la ruta que apuntaba a debugConfig en routes/api.php
     public function debugConfig()
     {
         return $this->checkConfig();
     }
 
-    // Manejar el retorno público de PayPal (redireccionar al frontend)
+    /**
+     * Maneja el retorno GET desde PayPal (frontend redirect)
+     */
     public function handleReturn(Request $request)
     {
         $orderId = $request->query('token');
@@ -362,5 +449,40 @@ class PayPalController extends Controller
         }
 
         return redirect()->away($frontendUrl . '/paypal-return?token=' . urlencode($orderId));
+    }
+
+    /**
+     * Traduce errores del payload de PayPal a mensajes amigables.
+     */
+    private function getFriendlyErrorMessage($errorData)
+    {
+        if (!isset($errorData['details']) || !is_array($errorData['details'])) {
+            return 'Error al procesar el pago. Por favor, intenta con otro método de pago.';
+        }
+
+        foreach ($errorData['details'] as $detail) {
+            $issue = $detail['issue'] ?? '';
+
+            switch ($issue) {
+                case 'INSTRUMENT_DECLINED':
+                    return 'La tarjeta fue rechazada. Por favor, intenta con otra tarjeta o método de pago.';
+                case 'PAYER_CANNOT_PAY':
+                    return 'Este método de pago no puede completar la transacción.';
+                case 'TRANSACTION_REFUSED':
+                    return 'La transacción fue rechazada.';
+                case 'INSUFFICIENT_FUNDS':
+                    return 'Fondos insuficientes.';
+                case 'CVV_FAILURE':
+                    return 'El código de seguridad es incorrecto.';
+                case 'EXPIRED_CARD':
+                    return 'La tarjeta ha expirado.';
+                case '3D_SECURE_ERROR':
+                    return 'Error en la verificación de seguridad.';
+                default:
+                    return 'Error al procesar el pago. Por favor, intenta nuevamente.';
+            }
+        }
+
+        return 'Error al procesar el pago.';
     }
 }
