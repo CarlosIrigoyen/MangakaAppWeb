@@ -10,7 +10,7 @@ use App\Http\Controllers\PayPalController;
 use App\Http\Controllers\CarritoController;
 use App\Http\Controllers\FiltroController;
 use App\Http\Controllers\SuscripcionController;
-
+use App\Http\Controllers\Api\GoogleAuthController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -36,6 +36,11 @@ Route::post('paypal/webhook', [PayPalController::class, 'webhook']);
 
 // Ruta pública para el retorno de PayPal (redirecciona al frontend)
 Route::get('paypal/return', [PayPalController::class, 'handleReturn']);
+// 👇 NUEVAS RUTAS PARA GOOGLE AUTH 👇
+Route::prefix('auth')->group(function () {
+    Route::post('/google', [GoogleAuthController::class, 'authenticate']);
+    Route::get('/google/test', [GoogleAuthController::class, 'testConnection']);
+});
 
 // --- RUTAS PROTEGIDAS (Sanctum) ---
 Route::middleware('auth:sanctum')->group(function () {
