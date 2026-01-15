@@ -10,18 +10,15 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 use Cloudinary\Api\Upload\UploadApi;
-use \App\Services\NotificacionService;
+use App\Services\NotificacionService;
+
 class TomoController extends Controller
 {
-     /**
-     * Muestra la lista de tomos (página de administración).
-     * - Permite alternar entre tomos activos e inactivos.
-     * - Aplica filtros de idioma, autor, manga, editorial y búsqueda.
-     * - Ordena y pagina resultados según parámetros de consulta.
+    /**
+     * Página de administración: listado de tomos con filtros y paginación.
      */
     public function index(Request $request)
     {
-        // 1) Base de la query según filtro, cualificando 'tomos.activo'
         if ($request->get('filter_type') === 'inactivos') {
             $base = Tomo::withoutGlobalScope('activo')
                         ->where('tomos.activo', false);
@@ -29,26 +26,20 @@ class TomoController extends Controller
             $base = Tomo::query();
         }
 
-        // 2) Relacionar siempre
         $query = $base->with('manga', 'editorial', 'manga.autor');
 
-        // 3) Aplicar los demás filtros (idioma, autor, etc.) salvo si es “inactivos”
         if ($request->get('filter_type') !== 'inactivos') {
             $query = $this->applyFilters($request, $query);
         }
 
-        // 4) Orden y paginación
         if (! $request->filled('filter_type') && ! $request->filled('search')) {
             $query->orderByDesc('created_at');
-        }
-        elseif ($request->filled('filter_type') && $request->get('filter_type') !== 'inactivos') {
-            // Seleccionamos tomos.* antes de hacer join para evitar ambigüedad
+        } elseif ($request->filled('filter_type') && $request->get('filter_type') !== 'inactivos') {
             $query->select('tomos.*')
                   ->join('mangas', 'mangas.id', '=', 'tomos.manga_id')
                   ->orderBy('mangas.titulo', 'asc')
                   ->orderBy('tomos.numero_tomo', 'asc');
-        }
-        else {
+        } else {
             $query->orderBy('numero_tomo','asc');
         }
 
@@ -63,30 +54,23 @@ class TomoController extends Controller
             'tomos','mangas','editoriales','nextTomos','lowStockTomos','hasLowStock'
         ));
     }
+
     /**
-     * Reactiva un tomo previamente marcado como inactivo.
-     * - Busca el tomo sin el scope 'activo'.
-     * - Actualiza el campo activo a true.
-     * - Redirige al listado de inactivos con mensaje de éxito.
+     * Reactiva un tomo marcado como inactivo.
      */
     public function reactivate($id, Request $request)
-{
-    $tomo = Tomo::withoutGlobalScope('activo')->findOrFail($id);
-    $tomo->update(['activo' => true]);
+    {
+        $tomo = Tomo::withoutGlobalScope('activo')->findOrFail($id);
+        $tomo->update(['activo' => true]);
 
-    return redirect()
-        ->route('tomos.index', ['filter_type' => 'inactivos'])
-        ->with('success', 'Tomo reactivado correctamente.');
-}
+        return redirect()
+            ->route('tomos.index', ['filter_type' => 'inactivos'])
+            ->with('success', 'Tomo reactivado correctamente.');
+    }
 
     /**
-        * Aplica filtros a la consulta de tomos:
-        * - idioma
-        * - autor
-        * - manga
-        * - editorial
-    */
-
+     * Aplica filtros (idioma, autor, manga, editorial, búsqueda).
+     */
     protected function applyFilters(Request $request, Builder $query): Builder
     {
         if ($idioma = $request->get('idioma')) {
@@ -110,9 +94,9 @@ class TomoController extends Controller
         }
         return $query;
     }
+
     /**
-         * Genera los datos del próximo tomo para cada par manga-editorial.
-         * Devuelve un array multidimensional:
+     * Genera datos del próximo tomo por par manga-editorial.
      */
     protected function getNextTomoData($mangas, $editoriales): array
     {
@@ -145,10 +129,10 @@ class TomoController extends Controller
         }
         return $result;
     }
-        /**
-        * * Almacena un nuevo tomo en la base de datos.
-        * - Maneja la logica de la subida de la portada a coludinary.
-        */
+
+    /**
+     * Guarda un nuevo tomo (subida a Cloudinary incluida).
+     */
     public function store(Request $request)
     {
         $nextNumero = Tomo::withoutGlobalScope('activo')
@@ -178,25 +162,17 @@ class TomoController extends Controller
         ];
         $validated = $request->validate($rules);
 
-        // === Cloudinary: preparar y subir la portada ===
-        $file = $request->file('portada'); //se obitiene la imagen de la portada
-        $slug = Str::slug(Manga::findOrFail($validated['manga_id'])->titulo); // se obtiene el slug del manga
-        $ext = $file->getClientOriginalExtension(); // se obtiene la extension
-        $temp = sys_get_temp_dir() . "/portada_{$nextNumero}.{$ext}"; // se crea un archivo temporal
-        $file->move(sys_get_temp_dir(), basename($temp)); // se mueve el archivo a la carpeta temporal
-        // se sube la portada
-        // folder es la carpeta donde se van a guardar las imagenes
-        // public_id es el nombre de la imagen
+        $file = $request->file('portada');
+        $slug = Str::slug(Manga::findOrFail($validated['manga_id'])->titulo);
+        $ext = $file->getClientOriginalExtension();
+        $temp = sys_get_temp_dir() . "/portada_{$nextNumero}.{$ext}";
+        $file->move(sys_get_temp_dir(), basename($temp));
+
         $upload = (new UploadApi())->upload($temp, [
             'folder' => "tomo_portadas/$slug",
             'public_id' => "portada_{$nextNumero}",
             'transformation' => [
-                [
-                    'width' => 270,
-                    'height' => 320,
-                    'crop' => 'fill',
-                ]
-
+                ['width' => 270, 'height' => 320, 'crop' => 'fill']
             ]
         ]);
 
@@ -213,16 +189,18 @@ class TomoController extends Controller
             'public_id' => $upload['public_id'],
             'activo' => true,
         ]);
-        //envio de notifcaciones
-                   // Enviar notificaciones a suscriptores
-           $notificacionService = new NotificacionService();
-           $notificacionService->notificarNuevoTomo($validated['manga_id'], $nextNumero);
 
-        // se borra el archivo temporal
+        // Notificar suscriptores si aplica
+        $notificacionService = new NotificacionService();
+        $notificacionService->notificarNuevoTomo($validated['manga_id'], $nextNumero);
+
         @unlink($temp);
         return redirect()->route('tomos.index')->with('success', 'Tomo creado exitosamente.');
     }
-    // === Actualizar un tomo ===
+
+    /**
+     * Devuelve datos para el formulario de edición (AJAX).
+     */
     public function edit($id)
     {
         $tomo = Tomo::with('manga', 'editorial')->findOrFail($id);
@@ -230,7 +208,10 @@ class TomoController extends Controller
         $editoriales = Editorial::all();
         return response()->json(compact('tomo', 'mangas', 'editoriales'));
     }
-    //actualzar tomo con los nuevos datos recibidos
+
+    /**
+     * Actualiza un tomo existente.
+     */
     public function update(Request $request, $id)
     {
         $tomo = Tomo::findOrFail($id);
@@ -249,7 +230,7 @@ class TomoController extends Controller
         }
 
         $validated = $request->validate($rules);
-        // si se ha cambiado la portada se actualiza en cloudinary
+
         if ($request->hasFile('portada')) {
             $file = $request->file('portada');
             $ext = $file->getClientOriginalExtension();
@@ -259,13 +240,7 @@ class TomoController extends Controller
             $upload = (new UploadApi())->upload($temp, [
                 'folder' => "tomo_portadas/$slug",
                 'public_id' => "portada_{$tomo->numero_tomo}",
-                'transformation' => [
-                    [
-                        'width'  => 270,
-                        'height' => 320,
-                        'crop'   => 'fill'
-                    ]
-                ],
+                'transformation' => [['width' => 270, 'height' => 320, 'crop' => 'fill']]
             ]);
             $validated['portada'] = $upload['secure_url'];
             $validated['public_id'] = $upload['public_id'];
@@ -276,7 +251,10 @@ class TomoController extends Controller
         return redirect($request->input('redirect_to', route('tomos.index')))
                ->with('success', 'Tomo actualizado correctamente.');
     }
-    // soft delete de un tomo
+
+    /**
+     * Soft-delete (marcar como inactivo).
+     */
     public function destroy($id, Request $request)
     {
         $tomo = Tomo::withoutGlobalScope('activo')->findOrFail($id);
@@ -285,7 +263,10 @@ class TomoController extends Controller
         return redirect($request->input('redirect_to', route('tomos.index')))
                ->with('success', 'Tomo marcado como inactivo.');
     }
-    //actualiza el stock de varios tomos con stock bajo
+
+    /**
+     * Actualiza el stock de varios tomos (form admin).
+     */
     public function updateMultipleStock(Request $request)
     {
         $request->validate([
@@ -300,52 +281,68 @@ class TomoController extends Controller
 
         return redirect()->route('tomos.index')->with('success', 'Stocks actualizados correctamente.');
     }
-    // api para obtener los tomos y mostrarlos en el front de react
+
+    /**
+     * Endpoint público para listar tomos (API).
+     */
     public function indexPublic(Request $request)
-{
-    $query = Tomo::with('manga', 'editorial', 'manga.autor','manga.dibujante','manga.generos');
+    {
+        $query = Tomo::with('manga', 'editorial', 'manga.autor','manga.dibujante','manga.generos');
 
-    if ($request->filled('authors')) {
-        $ids = explode(',', $request->get('authors'));
-        $query->whereHas('manga.autor', fn($q) => $q->whereIn('id', $ids));
+        if ($request->filled('authors')) {
+            $ids = explode(',', $request->get('authors'));
+            $query->whereHas('manga.autor', fn($q) => $q->whereIn('id', $ids));
+        }
+
+        if ($request->filled('languages')) {
+            $langs = explode(',', $request->get('languages'));
+            $query->whereIn('idioma', $langs);
+        }
+
+        if ($request->filled('mangas')) {
+            $mids = explode(',', $request->get('mangas'));
+            $query->whereIn('manga_id', $mids);
+        }
+
+        if ($request->filled('editorials')) {
+            $eids = explode(',', $request->get('editorials'));
+            $query->whereIn('editorial_id', $eids);
+        }
+
+        if ($search = $request->get('search')) {
+            $query->where(fn($q) =>
+                $q->where('numero_tomo', 'like', "%{$search}%")
+                  ->orWhereHas('manga', fn($q2) => $q2->where('titulo', 'like', "%{$search}%"))
+                  ->orWhereHas('editorial', fn($q3) => $q3->where('nombre', 'like', "%{$search}%"))
+            );
+        }
+
+        if ($request->get('applyPriceFilter') == 1 && $request->filled(['minPrice', 'maxPrice'])) {
+            $query->whereBetween('precio', [floatval($request->minPrice), floatval($request->maxPrice)]);
+        }
+
+        $query->whereDate('fecha_publicacion', '<=', now());
+
+        $query->orderByRaw("(select titulo from mangas where mangas.id = tomos.manga_id) asc")
+              ->orderBy('numero_tomo', 'asc');
+
+        $tomos = $query->paginate(8)->appends($request->query());
+
+        return response()->json($tomos);
     }
 
-    if ($request->filled('languages')) {
-        $langs = explode(',', $request->get('languages'));
-        $query->whereIn('idioma', $langs);
+    /**
+     * GET /api/tomos/{id}
+     * Endpoint público para obtener la información de un tomo (usado por frontend para validar stock).
+     */
+    public function showPublic($id)
+    {
+        $tomo = Tomo::with('manga', 'editorial')->find($id);
+
+        if (!$tomo) {
+            return response()->json(['message' => 'Tomo no encontrado'], 404);
+        }
+
+        return response()->json($tomo);
     }
-
-    if ($request->filled('mangas')) {
-        $mids = explode(',', $request->get('mangas'));
-        $query->whereIn('manga_id', $mids);
-    }
-
-    if ($request->filled('editorials')) {
-        $eids = explode(',', $request->get('editorials'));
-        $query->whereIn('editorial_id', $eids);
-    }
-
-    if ($search = $request->get('search')) {
-        $query->where(fn($q) =>
-            $q->where('numero_tomo', 'like', "%{$search}%")
-              ->orWhereHas('manga', fn($q2) => $q2->where('titulo', 'like', "%{$search}%"))
-              ->orWhereHas('editorial', fn($q3) => $q3->where('nombre', 'like', "%{$search}%"))
-        );
-    }
-
-    if ($request->get('applyPriceFilter') == 1 && $request->filled(['minPrice', 'maxPrice'])) {
-        $query->whereBetween('precio', [floatval($request->minPrice), floatval($request->maxPrice)]);
-    }
-
-    // Filtro por fecha de publicación actual o pasada
-    $query->whereDate('fecha_publicacion', '<=', now());
-
-    $query->orderByRaw("(select titulo from mangas where mangas.id = tomos.manga_id) asc")
-          ->orderBy('numero_tomo', 'asc');
-
-    $tomos = $query->paginate(8)->appends($request->query());
-
-    return response()->json($tomos);
-}
-
 }
