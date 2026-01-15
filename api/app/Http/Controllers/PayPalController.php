@@ -52,6 +52,7 @@ class PayPalController extends Controller
 
     /**
      * Crea la orden en PayPal. Guarda metadata completa en BD y envía custom_id corto a PayPal.
+     * En caso de stock insuficiente devuelve JSON con { message, tomo_id } y HTTP 400 (o 404 si no existe).
      */
     public function createOrder(Request $request)
     {
@@ -70,11 +71,21 @@ class PayPalController extends Controller
             $clienteId = $request->input('cliente_id');
             $productos = $request->input('productos', []);
 
-            // 1) Validar stock
+            // 1) Validar stock -> si falta stock devolver JSON estructurado con tomo_id
             foreach ($productos as $prod) {
                 $tomo = Tomo::find($prod['tomo_id']);
-                if (!$tomo || $tomo->stock < $prod['cantidad']) {
-                    throw new \Exception("Stock insuficiente para el tomo ID {$prod['tomo_id']}");
+                if (!$tomo) {
+                    return response()->json([
+                        'message' => "Tomo no encontrado",
+                        'tomo_id' => $prod['tomo_id']
+                    ], 404);
+                }
+                if ($tomo->stock < $prod['cantidad']) {
+                    return response()->json([
+                        'message' => "Stock insuficiente para el tomo ID {$prod['tomo_id']}",
+                        'tomo_id' => $prod['tomo_id'],
+                        'stock' => $tomo->stock
+                    ], 400);
                 }
             }
 
