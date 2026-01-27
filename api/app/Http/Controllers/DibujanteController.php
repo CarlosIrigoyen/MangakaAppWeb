@@ -133,11 +133,15 @@ class DibujanteController extends Controller
      * Devuelve JSON con la cuenta de mangas asociados a un dibujante.
      */
     public function checkMangas($id)
-    {
-        $dibujante = Dibujante::withCount('mangas')->findOrFail($id);
-        return response()->json([
-            'mangas_count' => $dibujante->mangas_count,
-            'nombre'       => $dibujante->nombre . ' ' . $dibujante->apellido,
-        ]);
-    }
+{
+    // Buscamos al dibujante y contamos solo sus mangas que estén activos
+    $dibujante = Dibujante::withCount(['mangas' => function ($query) {
+        $query->activo(); // Filtra usando el scope 'activo' del modelo Manga
+    }])->findOrFail($id);
+
+    return response()->json([
+        'mangas_count' => $dibujante->mangas_count,
+        'nombre'       => $dibujante->nombre . ' ' . $dibujante->apellido,
+    ]);
+}
 }
