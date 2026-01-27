@@ -131,13 +131,15 @@ class AutorController extends Controller
     /**
      * Devuelve JSON con la cuenta de mangas asociados a un autor.
      */
-    public function checkMangas($id)
-    {
-        $autor = Autor::withCount('mangas')->findOrFail($id);
+   public function checkMangas($id)
+{
+    $autor = Autor::withCount(['mangas' => function ($query) {
+        $query->activo(); // Utilizamos el scope definido en el modelo Manga
+    }])->findOrFail($id);
 
-        return response()->json([
-            'mangas_count' => $autor->mangas_count,
-            'nombre'       => $autor->nombre . ' ' . $autor->apellido,
-        ]);
-    }
+    return response()->json([
+        'mangas_count' => $autor->mangas_count,
+        'nombre'       => $autor->nombre . ' ' . $autor->apellido,
+    ]);
+}
 }
