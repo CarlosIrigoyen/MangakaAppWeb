@@ -110,12 +110,15 @@ class GeneroController extends Controller
     /**
      * AJAX: devuelve el conteo de mangas asociados.
      */
-    public function checkMangas($id)
-    {
-        $genero = Genero::withCount('mangas')->findOrFail($id);
-        return response()->json([
-            'mangas_count' => $genero->mangas_count,
-            'nombre'       => $genero->nombre,
-        ]);
+    public function checkMangas($id){
+            // Agregamos el closure para que solo cuente los mangas con activo = true
+            $genero = Genero::withCount(['mangas' => function ($query) {
+                $query->activo(); // Usando el scope de tu modelo Manga
+            }])->findOrFail($id);
+        
+            return response()->json([
+                'mangas_count' => $genero->mangas_count,
+                'nombre'       => $genero->nombre,
+            ]);
     }
 }
