@@ -82,6 +82,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/suscribir', [SuscripcionController::class, 'suscribir']);
         Route::post('/desuscribir', [SuscripcionController::class, 'desuscribir']);
         Route::post('/actualizar-token', [SuscripcionController::class, 'actualizarToken']);
+        Route::get('/obtener-token', [SuscripcionController::class, 'obtenerTokenAutomatico']);
+
 
     });
 });
