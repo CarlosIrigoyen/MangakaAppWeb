@@ -11,6 +11,7 @@ use App\Http\Controllers\CarritoController;
 use App\Http\Controllers\FiltroController;
 use App\Http\Controllers\SuscripcionController;
 use App\Http\Controllers\Api\GoogleAuthController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -36,6 +37,7 @@ Route::post('paypal/webhook', [PayPalController::class, 'webhook']);
 
 // Ruta pública para el retorno de PayPal (redirecciona al frontend)
 Route::get('paypal/return', [PayPalController::class, 'handleReturn']);
+
 // 👇 NUEVAS RUTAS PARA GOOGLE AUTH 👇
 Route::prefix('auth')->group(function () {
     Route::post('/google', [GoogleAuthController::class, 'authenticate']);
@@ -73,17 +75,26 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/carrito/obtener/{clienteId}', [CarritoController::class, 'obtenerCarrito']);
     Route::delete('/carrito/limpiar/{clienteId}', [CarritoController::class, 'limpiarCarrito']);
 
-    // Suscripciones - RUTAS COMPLETAS
+    // Suscripciones - RUTAS ACTUALIZADAS
     Route::prefix('suscripciones')->group(function () {
+        // Obtener lista de mangas disponibles para suscripción
         Route::get('/mangas-disponibles', [SuscripcionController::class, 'mangasDisponibles']);
+
+        // Obtener las suscripciones del cliente (cliente_id + manga_id)
         Route::get('/mis-suscripciones', [SuscripcionController::class, 'misSuscripciones']);
+
+        // Actualizar suscripciones del cliente (reemplaza la lista)
         Route::post('/actualizar-suscripciones', [SuscripcionController::class, 'actualizarSuscripciones']);
-        Route::post('/suscripcion-automatica', [SuscripcionController::class, 'manejarSuscripcionAutomatica']);
+
+        // Suscribir / desuscribir individual
         Route::post('/suscribir', [SuscripcionController::class, 'suscribir']);
         Route::post('/desuscribir', [SuscripcionController::class, 'desuscribir']);
-        Route::post('/actualizar-token', [SuscripcionController::class, 'actualizarToken']);
+
+        // Registrar / eliminar FCM token por dispositivo (cliente_dispositivos)
+        Route::post('/registrar-token', [SuscripcionController::class, 'registrarToken']);
+        Route::post('/eliminar-token', [SuscripcionController::class, 'eliminarToken']);
+
+        // Obtener un token existente (compatibilidad frontend)
         Route::get('/obtener-token', [SuscripcionController::class, 'obtenerTokenAutomatico']);
-
-
     });
 });
