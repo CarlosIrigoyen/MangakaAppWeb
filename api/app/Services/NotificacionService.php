@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Log;
 use App\Models\ClienteMangaSuscripcion;
+use App\Models\ClienteDispositivo;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification;
@@ -56,7 +57,6 @@ class NotificacionService
             $this->messaging = $factory->createMessaging();
 
             Log::info("✅ SDK Firebase inicializado correctamente");
-
         } catch (\Throwable $e) {
             Log::error("❌ Error inicializando Firebase: " . $e->getMessage());
             $this->messaging = null;
@@ -75,13 +75,28 @@ class NotificacionService
             return false;
         }
 
-        $tokens = ClienteMangaSuscripcion::where('manga_id', $mangaId)
-                    ->whereNotNull('fcm_token')
-                    ->where('fcm_token', '!=', '')
-                    ->pluck('fcm_token')
-                    ->unique()
-                    ->values()
-                    ->toArray();
+        // 1) Obtener todos los clientes suscritos al manga
+        $clienteIds = ClienteMangaSuscripcion::where('manga_id', $mangaId)
+            ->pluck('cliente_id')
+            ->unique()
+            ->values()
+            ->toArray();
+
+        Log::info("📋 Clientes suscritos: " . count($clienteIds));
+
+        if (empty($clienteIds)) {
+            Log::warning("⚠️ No hay clientes suscritos para el manga {$mangaId}");
+            return false;
+        }
+
+        // 2) Obtener todos los tokens FCM de los dispositivos asociados a esos clientes
+        $tokens = ClienteDispositivo::whereIn('cliente_id', $clienteIds)
+            ->whereNotNull('fcm_token')
+            ->where('fcm_token', '!=', '')
+            ->pluck('fcm_token')
+            ->unique()
+            ->values()
+            ->toArray();
 
         Log::info("📋 Tokens encontrados: " . count($tokens));
 
@@ -146,16 +161,19 @@ class NotificacionService
 
                         Log::warning("❌ Token inválido: " . substr($token, 0, 20) . "... - " . $error->getMessage());
 
-                        // Eliminar token inválido
+                        // Eliminar token inválido de la tabla cliente_dispositivos
                         $this->eliminarTokenInvalido($token);
                     }
 
-                    // Log de tokens exitosos
+                    // Log de tokens exitosos (opcional)
                     foreach ($report->successes()->getItems() as $success) {
-                        $token = $success->target()->value();
-                        Log::debug("✅ Enviado a: " . substr($token, 0, 20) . "...");
+                        try {
+                            $token = $success->target()->value();
+                            Log::debug("✅ Enviado a: " . substr($token, 0, 20) . "...");
+                        } catch (\Throwable $e) {
+                            // algunos items pueden no exponer target de la misma forma; ignorar problemas menores de logging
+                        }
                     }
-
                 } catch (MessagingException $e) {
                     Log::error("💥 Error en chunk {$chunkIndex}: " . $e->getMessage());
                     $failureCount += count($chunk);
@@ -164,7 +182,6 @@ class NotificacionService
 
             Log::info("🎯 RESUMEN FINAL: {$successCount} éxitos, {$failureCount} fallos");
             return $successCount > 0;
-
         } catch (\Throwable $e) {
             Log::error("💥 ERROR CRÍTICO: " . $e->getMessage());
             return false;
@@ -172,14 +189,14 @@ class NotificacionService
     }
 
     /**
-     * Eliminar token inválido
+     * Eliminar token inválido (ahora en cliente_dispositivos)
      */
     private function eliminarTokenInvalido(string $token): void
     {
         try {
-            $affected = ClienteMangaSuscripcion::where('fcm_token', $token)->update(['fcm_token' => null]);
+            $affected = ClienteDispositivo::where('fcm_token', $token)->delete();
             if ($affected > 0) {
-                Log::info("🗑️ Token eliminado: " . substr($token, 0, 20) . "...");
+                Log::info("🗑️ Token eliminado de cliente_dispositivos: " . substr($token, 0, 20) . "...");
             }
         } catch (\Exception $e) {
             Log::error("❌ Error eliminando token: " . $e->getMessage());
@@ -187,7 +204,7 @@ class NotificacionService
     }
 
     /**
-     * Probar notificación específica
+     * Probar notificación específica (envía a un token)
      */
     public function probarNotificacion($token, $mangaId = 1, $numeroTomo = 1): array
     {
@@ -198,7 +215,6 @@ class NotificacionService
             return ['error' => 'Firebase no inicializado'];
         }
 
-        // Verificar que el token no esté vacío
         if (empty($token)) {
             Log::error("❌ Token vacío");
             return ['error' => 'Token vacío'];
@@ -216,18 +232,15 @@ class NotificacionService
         ];
 
         try {
-            Log::info("🛠️ Creando notificación...");
+            Log::info("🛠️ Creando notificación de prueba...");
             $notification = Notification::create($title, $body);
 
-            Log::info("🛠️ Creando mensaje...");
-
-            // Usar sendMulticast incluso para un solo token
             $message = CloudMessage::new()
                 ->withNotification($notification)
                 ->withData($data)
                 ->withHighestPossiblePriority();
 
-            Log::info("🚀 Enviando mensaje usando sendMulticast...");
+            Log::info("🚀 Enviando mensaje de prueba usando sendMulticast...");
             $report = $this->messaging->sendMulticast($message, [$token]);
 
             $successCount = $report->successes()->count();
@@ -257,19 +270,12 @@ class NotificacionService
                     'tokens_enviados' => 0
                 ];
             }
-
         } catch (MessagingException $e) {
             Log::error("❌ MessagingException: " . $e->getMessage());
-            return [
-                'success' => false,
-                'error' => $e->getMessage()
-            ];
+            return ['success' => false, 'error' => $e->getMessage()];
         } catch (\Throwable $e) {
             Log::error("❌ Error inesperado: " . $e->getMessage());
-            return [
-                'success' => false,
-                'error' => 'Error inesperado: ' . $e->getMessage()
-            ];
+            return ['success' => false, 'error' => 'Error inesperado: ' . $e->getMessage()];
         }
     }
 
@@ -292,25 +298,13 @@ class NotificacionService
             $report = $this->messaging->sendMulticast($message, [$token]);
 
             if ($report->successes()->count() > 0) {
-                return [
-                    'valid' => true,
-                    'message' => 'Token válido'
-                ];
+                return ['valid' => true, 'message' => 'Token válido'];
             } else {
                 $error = $report->failures()->getItems()[0]->error();
-                return [
-                    'valid' => false,
-                    'error' => $error->getMessage(),
-                    'message' => 'Token inválido'
-                ];
+                return ['valid' => false, 'error' => $error->getMessage(), 'message' => 'Token inválido'];
             }
-
         } catch (\Throwable $e) {
-            return [
-                'valid' => false,
-                'error' => $e->getMessage(),
-                'message' => 'Error verificando token'
-            ];
+            return ['valid' => false, 'error' => $e->getMessage(), 'message' => 'Error verificando token'];
         }
     }
 
@@ -330,29 +324,27 @@ class NotificacionService
 
             if ($clienteId) {
                 $suscripciones = ClienteMangaSuscripcion::where('cliente_id', $clienteId)
-                    ->whereNotNull('fcm_token')
                     ->get()
-                    ->groupBy('fcm_token')
-                    ->map(function ($suscripciones) {
-                        return [
-                            'token' => substr($suscripciones->first()->fcm_token, 0, 20) . '...',
-                            'count' => $suscripciones->count(),
-                            'mangas' => $suscripciones->pluck('manga_id')
-                        ];
-                    });
+                    ->groupBy('manga_id');
+
+                $dispositivos = ClienteDispositivo::where('cliente_id', $clienteId)->get()->map(function ($d) {
+                    return [
+                        'token' => substr($d->fcm_token, 0, 20) . '...',
+                        'platform' => $d->platform,
+                        'last_active_at' => $d->last_active_at,
+                    ];
+                });
 
                 $estado['cliente'] = [
                     'id' => $clienteId,
-                    'suscripciones' => $suscripciones,
-                    'total_tokens' => $suscripciones->count(),
-                    'total_suscripciones' => $suscripciones->sum('count')
+                    'suscripciones_count' => $suscripciones->count(),
+                    'dispositivos' => $dispositivos,
                 ];
             }
 
             Log::info('🔍 DEBUG ESTADO NOTIFICACIONES: ' . json_encode($estado));
 
             return $estado;
-
         } catch (\Exception $e) {
             Log::error('❌ Error en debugEstadoNotificaciones: ' . $e->getMessage());
             return ['error' => $e->getMessage()];

@@ -15,45 +15,15 @@ class Cliente extends Authenticatable
         'email',
         'password',
         'direccion',
-        'google_id', // NUEVO: Para login con Google
+        'google_id',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
-        'google_id', // Ocultamos el google_id en respuestas JSON
+        'google_id',
     ];
 
-    // Método para encontrar cliente por Google ID
-    public static function findByGoogleId($googleId)
-    {
-        return static::where('google_id', $googleId)->first();
-    }
-
-    // Método para encontrar o crear por Google
-    public static function findOrCreateByGoogle($googleData)
-    {
-        $cliente = static::where('email', $googleData['email'])
-                        ->orWhere('google_id', $googleData['google_id'])
-                        ->first();
-
-        if (!$cliente) {
-            $cliente = static::create([
-                'nombre' => $googleData['name'],
-                'email' => $googleData['email'],
-                'google_id' => $googleData['google_id'],
-                'password' => bcrypt(uniqid()), // Password aleatorio
-                'direccion' => 'Por definir - Actualiza tu perfil',
-            ]);
-        } elseif (empty($cliente->google_id)) {
-            // Si ya existía por email pero no tenía google_id, lo actualizamos
-            $cliente->update(['google_id' => $googleData['google_id']]);
-        }
-
-        return $cliente;
-    }
-
-    // Relaciones existentes (mantener)
     public function facturas()
     {
         return $this->hasMany(Factura::class);
@@ -73,5 +43,38 @@ class Cliente extends Authenticatable
     {
         return $this->belongsToMany(Manga::class, 'cliente_manga_suscripciones', 'cliente_id', 'manga_id')
                     ->withTimestamps();
+    }
+
+    // NUEVO: dispositivos
+    public function dispositivos()
+    {
+        return $this->hasMany(ClienteDispositivo::class);
+    }
+
+    // Helpers Google (si ya estaban)
+    public static function findByGoogleId($googleId)
+    {
+        return static::where('google_id', $googleId)->first();
+    }
+
+    public static function findOrCreateByGoogle($googleData)
+    {
+        $cliente = static::where('email', $googleData['email'])
+                        ->orWhere('google_id', $googleData['google_id'])
+                        ->first();
+
+        if (!$cliente) {
+            $cliente = static::create([
+                'nombre' => $googleData['name'],
+                'email' => $googleData['email'],
+                'google_id' => $googleData['google_id'],
+                'password' => bcrypt(uniqid()),
+                'direccion' => 'Por definir - Actualiza tu perfil',
+            ]);
+        } elseif (empty($cliente->google_id)) {
+            $cliente->update(['google_id' => $googleData['google_id']]);
+        }
+
+        return $cliente;
     }
 }
