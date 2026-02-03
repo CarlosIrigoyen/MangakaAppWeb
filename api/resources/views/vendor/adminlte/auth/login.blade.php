@@ -6,11 +6,7 @@
 
 @section('adminlte_css')
     <style>
-        body.login-page {
-            background: url('{{ asset('vendor/adminlte/dist/img/MangakaBaka.png') }}') no-repeat center center fixed;
-            background-size: cover;
-        }
-
+    
         .login-box {
             background-color: rgba(0, 0, 0, 0.7);
             padding: 20px;
