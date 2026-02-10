@@ -56,7 +56,6 @@
                         <p>Ventas Totales <span id="yearTitle">{{ $year ?? '-' }}</span></p>
                     </div>
                     <div class="icon"><i class="fas fa-shopping-cart"></i></div>
-            
                 </div>
             </div>
 
@@ -67,7 +66,7 @@
                         <p>Tomos Vendidos <span id="yearTitle2">{{ $year ?? '-' }}</span></p>
                     </div>
                     <div class="icon"><i class="fas fa-book"></i></div>
-                    <a href="#" class="small-box-footer">Más info <i class="fas fa-arrow-circle-right"></i></a>
+                    {{-- enlace "Más info" removido --}}
                 </div>
             </div>
 
@@ -78,7 +77,7 @@
                         <p>Ingresos Totales <span id="yearTitle3">{{ $year ?? '-' }}</span></p>
                     </div>
                     <div class="icon"><i class="fas fa-dollar-sign"></i></div>
-                    <a href="#" class="small-box-footer">Más info <i class="fas fa-arrow-circle-right"></i></a>
+                    {{-- enlace "Más info" removido --}}
                 </div>
             </div>
 
@@ -89,7 +88,7 @@
                         <p>Promedio por Venta</p>
                     </div>
                     <div class="icon"><i class="fas fa-chart-line"></i></div>
-                    <a href="#" class="small-box-footer">Más info <i class="fas fa-arrow-circle-right"></i></a>
+                    {{-- enlace "Más info" removido --}}
                 </div>
             </div>
         </div>
@@ -151,29 +150,29 @@
                 </div>
             </div>
 
-            <!-- Top Mangas (server-side render) -->
+            <!-- Top Mangas (tabla simple de puesto y nombre) -->
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header"><h3 class="card-title">Top Mangas Más Vendidos</h3></div>
                     <div class="card-body p-0">
-                        <div id="topMangasList" style="max-height: 400px; overflow-y: auto;">
+                        <div style="max-height: 400px; overflow-y: auto; padding: 10px;">
                             @if(isset($topMangas) && $topMangas->isNotEmpty())
-                                @foreach($topMangas as $index => $manga)
-                                    <div class="top-manga-item">
-                                        <div class="manga-rank">{{ $index + 1 }}</div>
-                                        <div class="manga-info">
-                                            <div class="manga-titulo" title="{{ $manga->titulo }}">{{ $manga->titulo }}</div>
-                                            <div class="manga-stats">
-                                                <div><i class="fas fa-chart-bar"></i>
-                                                    {{ number_format($manga->total_vendido ?? 0, 0, ',', '.') }} tomos vendidos
-                                                </div>
-                                                <div><i class="fas fa-dollar-sign"></i>
-                                                    {{ number_format($manga->ingresos_totales ?? 0, 0, ',', '.') }} ARS
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endforeach
+                                <table class="table table-sm table-striped mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 60px;">Puesto</th>
+                                            <th>Manga</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($topMangas as $index => $manga)
+                                            <tr>
+                                                <td>{{ $index + 1 }}</td>
+                                                <td title="{{ $manga->titulo }}">{{ $manga->titulo }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
                             @else
                                 <p class="text-muted text-center p-3">No hay datos de ventas disponibles</p>
                             @endif
@@ -186,7 +185,7 @@
         <!-- Gráficos Secundarios -->
         <div class="row mt-4">
             <!-- Ingresos Mensuales -->
-            <div class="col-md-6">
+            <div class="col-md-12">
                 <div class="card">
                     <div class="card-header"><h3 class="card-title">Ingresos Mensuales en Pesos Argentinos</h3></div>
                     <div class="card-body">
@@ -195,15 +194,7 @@
                 </div>
             </div>
 
-            <!-- Tomos Vendidos por Mes -->
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header"><h3 class="card-title">Tomos Vendidos por Mes</h3></div>
-                    <div class="card-body">
-                        <canvas id="tomosMensualesChart" height="200"></canvas>
-                    </div>
-                </div>
-            </div>
+            <!-- Nota: el bloque "Tomos Vendidos por Mes" fue removido según lo solicitado -->
         </div>
     </div>
 @stop
@@ -225,13 +216,15 @@
         .manga-rank { position:absolute; left:5px; top:5px; background:#007bff; color:#fff; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center; font-size:.7rem; font-weight:bold; }
         .info-box { box-shadow:0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.24); border-radius:.25rem; }
         .loading { opacity:.6; pointer-events:none; }
+        /* Tabla del top para mejor lectura */
+        table.table-sm td, table.table-sm th { vertical-align: middle; }
     </style>
 @stop
 
 @section('js')
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        let ventasChart, ingresosChart, tomosChart;
+        let ventasChart, ingresosChart;
         let currentYear = document.getElementById('yearSelect') ? document.getElementById('yearSelect').value : null;
 
         // Formateadores
@@ -302,7 +295,7 @@
 
                 crearGraficoVentasMensuales(data.ventas_mensuales);
                 crearGraficoIngresosMensuales(data.ventas_mensuales);
-                crearGraficoTomosMensuales(data.ventas_mensuales);
+                // Nota: el gráfico "Tomos Mensuales" fue removido (no se invoca)
             } catch (err) {
                 console.error('Error en ventas mensuales:', err);
             }
@@ -367,29 +360,6 @@
                 }
             });
         }
-
-        function crearGraficoTomosMensuales(datos) {
-            const ctx = document.getElementById('tomosMensualesChart').getContext('2d');
-            const meses = datos.map(d => d.mes);
-            const tomos = datos.map(d => d.total_tomos);
-
-            if (tomosChart) tomosChart.destroy();
-
-            const totalTomos = tomos.reduce((s, v) => s + v, 0);
-            if (totalTomos === 0) {
-                ctx.clearRect(0,0,ctx.canvas.width, ctx.canvas.height);
-                ctx.font = '16px Arial';
-                ctx.fillStyle = '#666';
-                ctx.textAlign = 'center';
-                ctx.fillText('No hay datos de tomos vendidos para este año', ctx.canvas.width / 2, ctx.canvas.height / 2);
-                return;
-            }
-
-            tomosChart = new Chart(ctx, {
-                type: 'bar',
-                data: { labels: meses, datasets: [{ label: 'Tomos Vendidos', data: tomos }] },
-                options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
-            });
-        }
     </script>
 @stop
+
