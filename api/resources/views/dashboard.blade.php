@@ -150,7 +150,7 @@
                 </div>
             </div>
 
-            <!-- Top Mangas (tabla simple de puesto y nombre) -->
+            <!-- Top Mangas (tabla con puesto, nombre e ingresos) -->
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header"><h3 class="card-title">Top Mangas Más Vendidos</h3></div>
@@ -162,6 +162,7 @@
                                         <tr>
                                             <th style="width: 60px;">Puesto</th>
                                             <th>Manga</th>
+                                            <th class="text-right" style="width: 120px;">Ingresos</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -169,6 +170,7 @@
                                             <tr>
                                                 <td>{{ $index + 1 }}</td>
                                                 <td title="{{ $manga->titulo }}">{{ $manga->titulo }}</td>
+                                                <td class="text-right">${{ number_format($manga->ingresos_totales ?? 0, 0, ',', '.') }}</td>
                                             </tr>
                                         @endforeach
                                     </tbody>
@@ -193,8 +195,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Nota: el bloque "Tomos Vendidos por Mes" fue removido según lo solicitado -->
         </div>
     </div>
 @stop
@@ -295,7 +295,6 @@
 
                 crearGraficoVentasMensuales(data.ventas_mensuales);
                 crearGraficoIngresosMensuales(data.ventas_mensuales);
-                // Nota: el gráfico "Tomos Mensuales" fue removido (no se invoca)
             } catch (err) {
                 console.error('Error en ventas mensuales:', err);
             }
