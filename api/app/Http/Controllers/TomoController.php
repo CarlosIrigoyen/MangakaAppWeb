@@ -17,44 +17,50 @@ class TomoController extends Controller
     /**
      * Página de administración: listado de tomos con filtros y paginación.
      */
-    public function index(Request $request)
-    {
-        if ($request->get('filter_type') === 'inactivos') {
-            $base = Tomo::withoutGlobalScope('activo')
-                        ->where('tomos.activo', false);
-        } else {
-            $base = Tomo::query();
-        }
+    public function index(Request $request){
+    // Nuevo: usar 'status' para controlar activos/inactivos.
+    // status = 'inactivo' -> listamos tomos con activo = false (sin global scope)
+    // status = 'activo' (o null) -> usamos el scope global (solo activos)
+    $status = $request->get('status');
 
-        $query = $base->with('manga', 'editorial', 'manga.autor');
-
-        if ($request->get('filter_type') !== 'inactivos') {
-            $query = $this->applyFilters($request, $query);
-        }
-
-        if (! $request->filled('filter_type') && ! $request->filled('search')) {
-            $query->orderByDesc('created_at');
-        } elseif ($request->filled('filter_type') && $request->get('filter_type') !== 'inactivos') {
-            $query->select('tomos.*')
-                  ->join('mangas', 'mangas.id', '=', 'tomos.manga_id')
-                  ->orderBy('mangas.titulo', 'asc')
-                  ->orderBy('tomos.numero_tomo', 'asc');
-        } else {
-            $query->orderBy('numero_tomo','asc');
-        }
-
-        $tomos         = $query->paginate(6)->appends($request->query());
-        $mangas        = Manga::activo()->get();
-        $editoriales   = Editorial::activo()->get();
-        $nextTomos     = $this->getNextTomoData($mangas, $editoriales);
-        $lowStockTomos = Tomo::where('stock','<',10)->with('manga')->get();
-        $hasLowStock   = $lowStockTomos->isNotEmpty();
-
-        return view('tomos.index', compact(
-            'tomos','mangas','editoriales','nextTomos','lowStockTomos','hasLowStock'
-        ));
+    if ($status === 'inactivo') {
+        $base = Tomo::withoutGlobalScope('activo')
+                    ->where('tomos.activo', false);
+    } else {
+        // status === 'activo' o null -> traer tomos activos usando scope global
+        $base = Tomo::query();
     }
 
+    // Base común con relaciones
+    $query = $base->with('manga', 'editorial', 'manga.autor');
+
+    // Aplicar filtros siempre (filtrará sobre el conjunto activo o inactivo según 'status')
+    $query = $this->applyFilters($request, $query);
+
+    // Orden por defecto: si no hay filtros de búsqueda ni status específico, ordenar por created_at desc
+    if (! $request->filled('filter_type') && ! $request->filled('search') && ! $request->filled('status')) {
+        $query->orderByDesc('created_at');
+    } elseif ($request->filled('filter_type') && $request->get('filter_type') !== 'inactivos') {
+        // mantiene la lógica de orden por manga + numero cuando corresponde
+        $query->select('tomos.*')
+              ->join('mangas', 'mangas.id', '=', 'tomos.manga_id')
+              ->orderBy('mangas.titulo', 'asc')
+              ->orderBy('tomos.numero_tomo', 'asc');
+    } else {
+        $query->orderBy('numero_tomo','asc');
+    }
+
+    $tomos         = $query->paginate(6)->appends($request->query());
+    $mangas        = Manga::activo()->get();
+    $editoriales   = Editorial::activo()->get();
+    $nextTomos     = $this->getNextTomoData($mangas, $editoriales);
+    $lowStockTomos = Tomo::where('stock','<',10)->with('manga')->get();
+    $hasLowStock   = $lowStockTomos->isNotEmpty();
+
+    return view('tomos.index', compact(
+        'tomos','mangas','editoriales','nextTomos','lowStockTomos','hasLowStock'
+    ));
+}
     /**
      * Reactiva un tomo marcado como inactivo.
      */
