@@ -44,8 +44,8 @@ class TomoController extends Controller
         }
 
         $tomos         = $query->paginate(6)->appends($request->query());
-        $mangas        = Manga::where('en_publicacion', 'si')->get();
-        $editoriales   = Editorial::all();
+        $mangas        = Manga::activo()->get();
+        $editoriales   = Editorial::activo()->get();
         $nextTomos     = $this->getNextTomoData($mangas, $editoriales);
         $lowStockTomos = Tomo::where('stock','<',10)->with('manga')->get();
         $hasLowStock   = $lowStockTomos->isNotEmpty();
@@ -205,7 +205,7 @@ class TomoController extends Controller
     {
         $tomo = Tomo::with('manga', 'editorial')->findOrFail($id);
         $mangas = Manga::all();
-        $editoriales = Editorial::all();
+        $editoriales = Editorial::activo()->get();
         return response()->json(compact('tomo', 'mangas', 'editoriales'));
     }
 
