@@ -1,9 +1,8 @@
 <div class="card card-filtros p-3">
     <h5>Filtros</h5>
 
-    {{-- Botones Activos / Inactivos / Quitar filtros --}}
+    {{-- Botones Activos / Inactivos --}}
     <div class="mb-3 d-flex gap-2 align-items-center">
-
         <a href="{{ route('tomos.index', array_merge(request()->except('status'), ['status' => 'activo'])) }}"
            class="btn {{ request('status', 'activo') !== 'inactivo' ? 'btn-primary' : 'btn-outline-primary' }}">
             Activos
@@ -12,10 +11,6 @@
         <a href="{{ route('tomos.index', array_merge(request()->except('status'), ['status' => 'inactivo'])) }}"
            class="btn {{ request('status') === 'inactivo' ? 'btn-primary' : 'btn-outline-primary' }}">
             Inactivos
-        </a>
-
-        <a href="{{ route('tomos.index') }}" class="btn btn-link ms-3">
-            Quitar filtros
         </a>
     </div>
 
@@ -125,16 +120,19 @@
 
         </div>
 
-        <div class="mt-3">
+        <div class="mt-3 d-flex gap-2">
             <button type="submit" class="btn btn-primary">
                 Filtrar
             </button>
+
+            <a href="{{ route('tomos.index') }}" class="btn btn-primary">
+                Quitar filtros
+            </a>
         </div>
 
     </form>
 
     <div class="mt-4">
-
         <button type="button"
                 class="btn btn-success btn-crear-tomo"
                 data-bs-toggle="modal"
@@ -150,7 +148,6 @@
                 Ver Stock Bajo
             </button>
         @endif
-
     </div>
 </div>
 
