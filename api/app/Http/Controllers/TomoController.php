@@ -314,13 +314,18 @@ class TomoController extends Controller
             $eids = explode(',', $request->get('editorials'));
             $query->whereIn('editorial_id', $eids);
         }
-
         if ($search = $request->get('search')) {
-            $query->where(fn($q) =>
-                $q->where('numero_tomo', 'like', "%{$search}%")
-                  ->orWhereHas('manga', fn($q2) => $q2->where('titulo', 'like', "%{$search}%"))
-                  ->orWhereHas('editorial', fn($q3) => $q3->where('nombre', 'like', "%{$search}%"))
-            );
+            $terms = explode(' ', $search);
+            $query->where(function ($query) use ($terms) {
+                foreach ($terms as $term) {
+                    $query->where(function ($q) use ($term) {
+                        $q->where('numero_tomo', 'like', "%{$term}%")
+                        ->orWhereHas('manga', fn($q2) => $q2->where('titulo', 'like', "%{$term}%"))
+                        ->orWhereHas('manga.autor', fn($q3) => $q3->where('nombre', 'like', "%{$term}%"))
+                        ->orWhereHas('editorial', fn($q4) => $q4->where('nombre', 'like', "%{$term}%"));
+                    });
+                }
+            });
         }
 
         if ($request->get('applyPriceFilter') == 1 && $request->filled(['minPrice', 'maxPrice'])) {
