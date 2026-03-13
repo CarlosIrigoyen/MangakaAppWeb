@@ -11,6 +11,15 @@
     <div class="sidebar">
         <nav class="pt-2" aria-label="Navegación principal">
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" data-accordion="false">
+                {{-- Dashboard --}}
+                <li class="nav-item">
+                    <a href="{{ route('dashboard') }}"
+                        class="nav-link {{ (request()->routeIs('dashboard') || request()->routeIs('dashboard.*')) ? 'active' : '' }}"
+                        @if(request()->routeIs('dashboard') || request()->routeIs('dashboard.*')) aria-current="page" @endif>
+                        <i class="nav-icon fas fa-tachometer-alt" aria-hidden="true"></i>
+                        <p>Dashboard</p>
+                    </a>
+                </li>
                 {{-- Ítem Autores --}}
                 <li class="nav-item">
                     <a href="{{ route('autores.index') }}"
