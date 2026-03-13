@@ -4,14 +4,17 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="modalReactivateLabel-{{ $tomo->id }}">Confirmar Reactivación</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          <!-- botón de cierre compatible BS4/BS5 -->
+          <button type="button" class="btn-close close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+          </button>
         </div>
         <div class="modal-body">
           ¿Estás seguro de que deseas dar de alta este tomo?
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <form action="{{ route('tomos.reactivate', $tomo->id) }}" method="POST">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-dismiss="modal">Cancelar</button>
+          <form action="{{ route('tomos.reactivate', $tomo->id) }}" method="POST" style="display:inline;">
             @csrf
             @method('PUT')
             <input type="hidden" name="redirect_to" value="{{ url()->full() }}">
@@ -22,4 +25,4 @@
         </div>
       </div>
     </div>
-  </div>
+</div>
